@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>EHS Quiz List</title>
+  <link rel="stylesheet" href="index.css" />
+  <script src="dingtalk.open.js"></script>
+  
+    <style>
+    /* --- 2026 TOP TECH COMPANY STYLE (Apple/Google/Microsoft inspired) --- */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      /* Modern Tech Blue Palette - Inspired by Apple/Google design systems */
+      --primary-blue: #0066CC;        /* Apple/Google Blue */
+      --primary-blue-hover: #0077ED;  /* Lighter blue for hover */
+      --primary-dark: #004999;        /* Deeper blue */
+      --tech-accent: #00A8E8;         /* Cyan accent */
+
+      /* Backgrounds - Clean whites and subtle grays */
+      --bg-page: #F8F9FA;             /* Very light gray page background */
+      --bg-surface: #FFFFFF;           /* Pure white cards */
+      --bg-elevated: #FFFFFF;         /* Elevated surfaces */
+
+      /* Text - High contrast dark for readability */
+      --text-primary: #1D1D1F;        /* Apple's dark text */
+      --text-secondary: #515154;      /* Secondary text */
+      --text-tertiary: #86868B;       /* Tertiary/muted text */
+
+      /* Borders - Subtle and refined */
+      --border-color: #E5E5E7;
+      --border-active: var(--primary-blue);
+
+      /* Modern rounded corners (Apple style: 12-16px) */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+
+      /* Soft shadows (Google Material 3 inspired) */
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+
+      /* Status colors */
+      --success-green: #34C759;
+      --warning-orange: #FF9500;
+      --error-red: #FF3B30;
+    }
+
+    /* --- GLOBAL RESET & TYPOGRAPHY --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* --- MODERN HEADER (Apple-style glassmorphism) --- */
+    .exam-list-header {
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 16px 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .header-top-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* User info - Clean and minimal */
+    .header-user-row h2 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Status indicator - Subtle pulse */
+    .header-user-row h2::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: var(--success-green);
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.2);
+    }
+
+    .brand-text-corner {
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-secondary);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* Top action bar */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .time-refresh-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .update-time {
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      background: var(--bg-page);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* --- MAIN CONTENT AREA --- */
+    .studentExam-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 32px 120px 32px;
+      width: 100%;
+      flex: 1;
+    }
+
+    /* Remove ElementUI defaults */
+    .el-card.full-table { background: transparent !important; border: none !important; box-shadow: none !important; }
+    .el-card__body { padding: 0 !important; }
+    .el-table { background-color: transparent !important; }
+    .el-table td.el-table__cell { border-bottom: none !important; padding: 8px 0 !important; }
+    .el-table__inner-wrapper::before, .el-table__border-left-patch { display: none !important; }
+    .el-table thead { display: none; }
+
+    /* --- MODERN CARD DESIGN (Apple/Google style) --- */
+    .question-item {
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-color);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    /* Hover effect - Shadow and border glow (no translate to avoid clipping) */
+    .question-item:hover {
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary-blue);
+    }
+
+    /* First row: title + status badge */
+    .question-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Task name - Bold and clear */
+    .question-name {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.4;
+      letter-spacing: -0.01em;
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Second row: metadata tags */
+    .question-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--text-secondary);
+      gap: 10px;
+    }
+
+    /* Modern tags - Pill style (Google Material You) */
+    .question-factory, .question-category {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 500;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+
+    .question-factory {
+      background: var(--bg-page);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .question-category {
+      background: rgba(0, 102, 204, 0.08);
+      color: var(--primary-blue);
+      border: 1px solid rgba(0, 102, 204, 0.2);
+    }
+
+    .question-date {
+      margin-left: auto;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* Today highlight - Soft blue background */
+    .today-date {
+      color: var(--primary-blue);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .today-date::after {
+      content: "NEW";
+      background: var(--primary-blue);
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    /* Status badges - Combined pill style (participated + result) */
+    .question-status {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .question-status-correct {
+      background: rgba(52, 199, 89, 0.1);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--success-green);
+      border: 1px solid rgba(52, 199, 89, 0.3);
+    }
+
+    .question-status-incorrect {
+      background: rgba(255, 59, 48, 0.1);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--error-red);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+    }
+
+    /* Today's row highlight */
+    .today-row .question-item {
+      background: linear-gradient(135deg, rgba(0, 102, 204, 0.03) 0%, rgba(0, 168, 232, 0.03) 100%);
+      border-color: rgba(0, 102, 204, 0.3);
+    }
+
+    /* --- MODERN CONTROLS --- */
+    .el-select { width: 100%; max-width: 280px; }
+    .el-select .el-input__wrapper {
+      background: var(--bg-surface) !important;
+      box-shadow: var(--shadow-sm) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: var(--radius-sm) !important;
+      padding: 8px 16px !important;
+      transition: all 0.2s ease;
+    }
+    .el-select .el-input__wrapper:hover, .el-select .el-input__wrapper.is-focus {
+      border-color: var(--primary-blue) !important;
+      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1) !important;
+    }
+    .el-select .el-input__inner { color: var(--text-primary) !important; }
+
+    /* Modern buttons - Apple style */
+    .el-button--info {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+      padding: 8px 20px;
+      height: 36px;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s ease;
+    }
+    .el-button--info:hover {
+      background: var(--primary-blue);
+      border-color: var(--primary-blue);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* --- FOOTER (Fixed) --- */
+    .app-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      z-index: 100;
+    }
+
+    .footer-logo-text {
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .footer-copyright {
+      color: var(--text-tertiary);
+      font-size: 11px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* --- LOADING (Modern spinner) --- */
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 99999;
+      background: rgba(248, 249, 250, 0.9);
+      backdrop-filter: blur(8px);
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .loading-spinner {
+      width: 44px; height: 44px;
+      border: 3px solid rgba(0, 102, 204, 0.15);
+      border-radius: 50%;
+      border-top-color: var(--primary-blue);
+      animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    }
+    .loading-text {
+      color: var(--primary-blue);
+      font-size: 13px; font-weight: 600; margin-top: 24px;
+      letter-spacing: 0.5px;
+      font-family: 'Inter', sans-serif;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* --- REFRESH HINT ANIMATION --- */
+    .refresh-hint-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    .refresh-hint-wrapper .pulse-ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 100%; height: 100%;
+      border: 2px solid var(--primary-blue);
+      border-radius: var(--radius-sm);
+      transform: translate(-50%, -50%);
+      animation: pulse-ring 2s ease-out infinite;
+      pointer-events: none;
+    }
+    @keyframes pulse-ring {
+      0%   { transform: translate(-50%, -50%) scale(1);    opacity: 0.5; }
+      70%  { opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1.6);  opacity: 0; }
+    }
+    .refresh-hint-bubble {
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary-blue);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 12px;
+      white-space: nowrap;
+      animation: bubble-bounce 2.4s ease-in-out infinite;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+    }
+    .refresh-hint-bubble::after {
+      content: '';
+      position: absolute;
+      top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--primary-blue);
+    }
+    @keyframes bubble-bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0);    opacity: 1; }
+      50%      { transform: translateX(-50%) translateY(-4px); opacity: 0.85; }
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      .exam-list-header { padding: 14px 20px; }
+      .header-actions { flex-direction: column; align-items: stretch; gap: 14px; }
+      .el-select { max-width: 100%; }
+      .studentExam-container { padding: 20px 16px 100px 16px; }
+      .question-item { padding: 20px; border-radius: var(--radius-md); }
+      .question-name { font-size: 16px; }
+      .brand-text-corner { font-size: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">System Initializing...</div>
+    </div>
+
+    <div class="exam-list-header">
+      <div class="header-content">
+        
+        <div class="header-top-section">
+            <div class="header-user-row">
+                <h2>{{ userName ? `${userName}` : 'Loading' }} | 问答列表</h2>
+            </div>
+            <div class="brand-text-corner">ASYMCHEM</div>
+        </div>
+
+        <div class="header-actions">
+          <el-select v-model="selectedFactory" placeholder="Select Site / 选择厂区" class="factory-select"
+            @change="handleFactoryFilter">
+            <el-option label="All Sites / 全部厂区" value=""> </el-option>
+            <el-option v-for="item in factoryOptions" :key="item.value" :label="item.label" :value="item.value">
+            </el-option>
+          </el-select>
+          <div class="time-refresh-container">
+            <span v-if="lastUpdateTime" class="update-time">
+              UPDATED: {{ lastUpdateTime.split(' ')[1] || lastUpdateTime }}
+            </span>
+            <el-tooltip content="刷新列表并从后台同步答题状态" placement="top" :show-after="300">
+              <div class="refresh-hint-wrapper">
+                <div v-if="refreshCooldown === 0" class="refresh-hint-bubble">点我自检答题记录</div>
+                <div v-if="refreshCooldown === 0" class="pulse-ring"></div>
+                <el-button type="info" @click="refreshData" :loading="loading" :disabled="refreshCooldown > 0" plain icon="Refresh">
+                  {{ refreshCooldown > 0 ? `刷新 (${refreshCooldown}s)` : '刷新' }}
+                </el-button>
+              </div>
+            </el-tooltip>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="studentExam-container">
+      <el-card class="full-table" shadow="never">
+        <div class="full-table-container">
+              <el-table :data="filteredTableData" style="width: 100%" tooltip-effect="dark" row-key="id" :row-class-name="getRowClassName">
+                  <el-table-column label="Task Name" min-width="250">
+                      <template #default="scope">
+                          <div class="question-item" @click="handleStartExam(scope.row)">
+                              <div class="question-header">
+                                  <div class="question-name">{{ scope.row.questions && scope.row.questions.length > 0 && scope.row.questions[0].questionName ? scope.row.questions[0].questionName : scope.row.examinationName }}</div>
+                                  <div class="question-status" v-if="isExamCompleted(scope.row.id)">
+                                      <span v-if="isExamCorrect(scope.row.id)" class="question-status-correct">已参与 ✓</span>
+                                      <span v-else class="question-status-incorrect">已参与 ✗</span>
+                                  </div>
+                              </div>
+                              <div class="question-meta">
+                                  <span class="question-factory">{{ scope.row.questions && scope.row.questions.length > 0 ? scope.row.questions[0].factory : 'N/A' }}</span>
+                                  <span class="question-category" v-if="scope.row.questions && scope.row.questions.length > 0 && scope.row.questions[0].category">{{ scope.row.questions[0].category }}</span>
+                                  <span v-if="scope.row.startTime" class="question-date">
+                                      <span :class="{'today-date': isToday(scope.row.startTime)}">
+                                          {{ formatDate(scope.row.startTime) }}
+                                      </span>
+                                  </span>
+                              </div>
+                          </div>
+                      </template>
+                  </el-table-column>
+              </el-table>
+        </div>
+      </el-card>
+    </div>
+
+    <footer class="app-footer">
+        <div class="footer-content">
+            <div class="footer-logo-text">Powered by Asymchem Information Technology</div>
+            <div class="footer-copyright">© {{ new Date().getFullYear() }} Asymchem Laboratories (Tianjin) Co., Ltd.</div>
+        </div>
+    </footer>
+  </div>
+
+  <script src="vue.global.js"></script>
+  <script src="index.full.js"></script>
+  <script src="axios.min.js"></script>
+  <script src="sm2.js"></script>
+   
+  <script>
+    const { createApp, ref, onMounted, computed } = Vue;
+
+    createApp({
+      setup() {
+        const tableData = ref([]);
+        const loading = ref(false);
+        const isLoading = ref(true);
+        const lastUpdateTime = ref("");
+        const selectedFactory = ref("");
+        const factoryOptions = ref([]);
+        const isInDingTalk = ref(false);
+        const userName = ref("");
+        const CORP_ID = "ding4cd35ec916112d2735c2f4657eb6378f";
+        const FACTORY_CACHE_KEY = "selectedFactory";
+        const privateKey = "8EDB615B1D48B8BE188FC0F18EC08A41DF50EA731FA28BF409E6552809E3A111";
+        const REFRESH_COOLDOWN_SECONDS = 30;
+        const COOLDOWN_STORAGE_KEY = "refresh_cooldown_until";
+        const refreshCooldown = ref(0);
+        let cooldownTimer = null;
+
+        const startCooldown = () => {
+          refreshCooldown.value = REFRESH_COOLDOWN_SECONDS;
+          localStorage.setItem(COOLDOWN_STORAGE_KEY, Date.now() + REFRESH_COOLDOWN_SECONDS * 1000);
+          if (cooldownTimer) clearInterval(cooldownTimer);
+          cooldownTimer = setInterval(() => {
+            refreshCooldown.value--;
+            if (refreshCooldown.value <= 0) {
+              clearInterval(cooldownTimer);
+              cooldownTimer = null;
+              localStorage.removeItem(COOLDOWN_STORAGE_KEY);
+            }
+          }, 1000);
+        };
+
+        const restoreCooldown = () => {
+          const until = parseInt(localStorage.getItem(COOLDOWN_STORAGE_KEY) || "0", 10);
+          const remaining = Math.ceil((until - Date.now()) / 1000);
+          if (remaining > 0) {
+            refreshCooldown.value = remaining;
+            if (cooldownTimer) clearInterval(cooldownTimer);
+            cooldownTimer = setInterval(() => {
+              refreshCooldown.value--;
+              if (refreshCooldown.value <= 0) {
+                clearInterval(cooldownTimer);
+                cooldownTimer = null;
+                localStorage.removeItem(COOLDOWN_STORAGE_KEY);
+              }
+            }, 1000);
+          } else {
+            localStorage.removeItem(COOLDOWN_STORAGE_KEY);
+          }
+        };
+
+        // --- DEBUG 模式 ---
+        // 用法: exam-list.html?debug=1&jobNum=ALS8594
+        // 跳过钉钉鉴权，直接使用指定工号，方便本地浏览器调试
+        const DEBUG_MODE = new URLSearchParams(window.location.search).get('debug') === '1';
+        const DEBUG_JOB_NUM = new URLSearchParams(window.location.search).get('jobNum') || 'ALS8594';
+
+        // --- 已完成答题相关 ---
+        const completedExams = ref({}); // 改为对象结构 { examId: 'correct' | 'incorrect' }
+
+        const getCompletedExamsFromStorage = async (jobNum) => {
+            const storageKey = `completed_exams_${jobNum}`;
+            try {
+                // 检查dd是否存在
+                if (typeof dd !== 'undefined' && dd.env && dd.env.storage) {
+                    const data = await dd.env.storage.getItem({ key: storageKey });
+                    return data ? JSON.parse(data) : {};
+                } else {
+                    // 降级到localStorage
+                    const data = localStorage.getItem(storageKey);
+                    return data ? JSON.parse(data) : {};
+                }
+            } catch (error) {
+                console.error('Failed to read completed exams:', error);
+                return {};
+            }
+        };
+
+        const loadCompletedExams = async () => {
+            try {
+                const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+                if (userInfo && userInfo.jobNum) {
+                    const data = await getCompletedExamsFromStorage(userInfo.jobNum);
+                    // 兼容旧版数组格式，转换为对象格式
+                    if (Array.isArray(data)) {
+                        // 旧格式: ["id1", "id2"] -> { "id1": "correct", "id2": "correct" }
+                        const converted = {};
+                        data.forEach(id => {
+                            converted[String(id)] = 'correct';
+                        });
+                        completedExams.value = converted;
+                    } else {
+                        completedExams.value = data;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load completed exams:', error);
+            }
+        };
+
+        const saveCompletedExamsToStorage = async (jobNum, examsObj) => {
+            const storageKey = `completed_exams_${jobNum}`;
+            try {
+                if (typeof dd !== 'undefined' && dd.env && dd.env.storage) {
+                    await dd.env.storage.setItem({ key: storageKey, value: JSON.stringify(examsObj) });
+                } else {
+                    localStorage.setItem(storageKey, JSON.stringify(examsObj));
+                }
+            } catch (error) {
+                console.error('Failed to save completed exams:', error);
+            }
+        };
+
+        const fetchCompletedExamsFromBackend = async () => {
+            try {
+                const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+                if (!userInfo || !userInfo.jobNum) return 0;
+
+                const encodedCode = strToBase64(userInfo.jobNum);
+                // DEBUG 模式走 vite proxy -> localhost:9999，生产模式走线上地址
+                const apiBase = DEBUG_MODE ? '' : 'https://ehs30sfun.asymchem.com.cn';
+                const apiUrl = `${apiBase}/api/StudentExam/GetCompletedExamsByHtml?code=${encodedCode}`;
+                if (DEBUG_MODE) console.log('[DEBUG] fetchCompletedExamsFromBackend -> apiUrl:', apiUrl);
+                const response = await axios.get(apiUrl, { timeout: 10000 });
+
+                if (response == null || response.data == null || response.data.code != 200) {
+                    console.warn('Failed to fetch completed exams from backend', response?.data);
+                    return 0;
+                }
+
+                let backendExams = null;
+                const resultStr = response.data.result;
+                if (resultStr && typeof resultStr === 'string' && resultStr.length > 0) {
+                    const decrypted = DecryptString(resultStr);
+                    if (DEBUG_MODE) console.log('[DEBUG] decrypted result:', decrypted);
+                    if (decrypted) {
+                        backendExams = JSON.parse(decrypted);
+                    }
+                }
+
+                if (DEBUG_MODE) console.log('[DEBUG] backendExams:', backendExams);
+
+                // 后端数据解析失败时不触碰本地缓存（可能是接口异常）
+                if (!Array.isArray(backendExams)) return 0;
+
+                // 后端为准，直接替换本地缓存（不再合并旧数据）
+                const backendMap = {};
+                backendExams.forEach(item => {
+                    if (item.examinationId != null) {
+                        backendMap[String(item.examinationId)] = item.isPassed ? 'correct' : 'incorrect';
+                    }
+                });
+                completedExams.value = backendMap;
+                if (DEBUG_MODE) console.log('[DEBUG] completedExams (replaced):', backendMap);
+                await saveCompletedExamsToStorage(userInfo.jobNum, backendMap);
+                return backendExams.length;
+            } catch (error) {
+                console.error('Failed to fetch completed exams from backend:', error);
+                return 0;
+            }
+        };
+
+        const isExamCompleted = (examId) => {
+            // 确保examId是字符串类型进行一致比较
+            const examIdStr = String(examId);
+            return completedExams.value.hasOwnProperty(examIdStr);
+        };
+
+        const isExamCorrect = (examId) => {
+            // 返回答题结果是否为正确
+            const examIdStr = String(examId);
+            return completedExams.value[examIdStr] === 'correct';
+        };
+
+        // --- SM2 解密函数 ---
+        function DecryptString(obj) {
+          console.log("DecryptString", obj);
+          if (obj != null && obj != undefined && obj.length > 0) {
+            var twochar = obj.substring(0, 2);
+            let decryptedData;
+            if (twochar === '04') {
+              decryptedData = sm2.doDecrypt(obj.substring(2), privateKey, 1, { output: 'string' });
+            } else {
+              decryptedData = sm2.doDecrypt(obj, privateKey, 1, { output: 'string' });
+            }
+            try {
+              return decodeURIComponent(decryptedData);
+            } catch (error) {
+              return decryptedData;
+            }
+          } else {
+            return null;
+          }
+        }
+        
+        // --- 初始化逻辑 ---
+            const initPage = async () => {
+            const params = new URLSearchParams(window.location.search);
+
+            // DEBUG 模式：跳过钉钉鉴权，直接设置 mock userInfo
+            if (DEBUG_MODE) {
+                console.log('[DEBUG] 调试模式已启用, jobNum:', DEBUG_JOB_NUM);
+                const mockUserInfo = { jobNum: DEBUG_JOB_NUM, realName: '调试用户' };
+                localStorage.setItem("userInfo", JSON.stringify(mockUserInfo));
+                userName.value = `${mockUserInfo.jobNum}-${mockUserInfo.realName}`;
+                return;
+            }
+
+                    // 检查是否存在code参数
+              if (!params.has('code')) {
+                // 弹出提示框要求用户选择厂区
+              ElementPlus.ElMessageBox.alert(
+                '请选择工作所在地厂区', 
+                '提示', 
+                {
+                  confirmButtonText: '确定',
+                  type: 'info',
+                  center: true
+                }
+              )
+            }
+              
+            if (dd) {
+              dd.runtime.permission.requestAuthCode({
+                corpId: CORP_ID,
+              })
+                .then((result) => {
+                  verifyAuthCode(result.code);
+                }).
+                catch((err) => {
+                  const errorMsg = err.message || '获取授权码失败';
+                  ElementPlus.ElMessage.error(`获取授权码失败: ${JSON.stringify(err)}`);
+                });
+            }
+        };
+
+        const verifyAuthCode = async (code) => {
+          if (code) {
+            const response = await axios.get("https://ehs30sfun.asymchem.com.cn/api/dingTalk/dingTalkUserInfo/" + code, null);
+            if (response != null && response.data != null && response.data.code == 200) {
+              var userInfo = JSON.parse(DecryptString(response.data.result));
+              userName.value = `${userInfo.jobNum}-${userInfo.realName}`;
+              localStorage.setItem("userInfo", JSON.stringify(userInfo));
+            }
+            else {
+              ElementPlus.ElMessageBox.alert(`验证失败: ${JSON.stringify(response)}`, 'Error', {
+                  confirmButtonText: '确定',
+                  type: 'error'
+              });
+            }
+          }
+          else {
+            ElementPlus.ElMessageBox.alert('code参数为空，请在钉钉工作平台中打开本应用', '提示', { 
+                confirmButtonText: '确定', 
+                type: 'warning' 
+            });
+          }
+        }
+
+        const getCodeFromUrl = () => {
+          const params = new URLSearchParams(window.location.search);
+          if (!params.has("authCode")) return null;
+          return params.get("authCode");
+        };
+        const code = getCodeFromUrl();
+
+        const loadSavedFactory = () => {
+          try {
+            const savedFactory = localStorage.getItem(FACTORY_CACHE_KEY);
+            if (savedFactory !== null) selectedFactory.value = savedFactory;
+          } catch (error) { console.error("读取厂区缓存失败:", error); }
+        };
+
+        const saveSelectedFactory = (factory) => {
+          try {
+            localStorage.setItem(FACTORY_CACHE_KEY, factory);
+          } catch (error) { console.error("保存厂区缓存失败:", error); }
+        };
+
+        const formatDate = (dateStr) => {
+          if (!dateStr) return "";
+          const date = new Date(dateStr);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        };
+
+        const isToday = (dateStr) => {
+          if (!dateStr) return false;
+          const date = new Date(dateStr);
+          const today = new Date();
+          return (
+            date.getFullYear() === today.getFullYear() &&
+            date.getMonth() === today.getMonth() &&
+            date.getDate() === today.getDate()
+          );
+        };
+
+        const getRowClassName = ({ row }) => {
+          if (row.startTime && isToday(row.startTime)) {
+            return "today-row";
+          }
+          return "";
+        };
+
+        const fetchExamData = async () => {
+          const startTime = Date.now();
+          try {
+            loading.value = true;
+            isLoading.value = true;
+
+            let pointerResponse;
+            try {
+              pointerResponse = await axios.get(`/exam-data/exam_data_latest.json`, { cache: 'no-store' });
+            } catch (pointerError) {
+              const response = await axios.get("/exam-data/exam_data_default.json");
+              tableData.value = response.data;
+              lastUpdateTime.value = new Date().toLocaleString();
+              updateFactoryOptions();
+              return;
+            }
+
+            const meta = pointerResponse.data;
+            let response;
+            try {
+              response = await axios.get(`/exam-data/${meta.current}`, { params: { t: Math.floor(Date.now() / (5 * 60 * 1000)) } });
+            } catch (dataError) {
+              response = await axios.get("/exam-data/exam_data_default.json");
+            }
+
+            tableData.value = response.data;
+            lastUpdateTime.value = new Date().toLocaleString();
+            updateFactoryOptions();
+          } catch (error) {
+            ElementPlus.ElMessage.error("数据加载失败，请刷新页面重试");
+          } finally {
+            const elapsedTime = Date.now() - startTime;
+            const delayTime = Math.max(0, 1500 - elapsedTime);
+            setTimeout(() => {
+              loading.value = false;
+              isLoading.value = false;
+            }, delayTime);
+          }
+        };
+
+        const updateFactoryOptions = () => {
+          const factories = new Set();
+          tableData.value.forEach((exam) => {
+            if (exam.questions && exam.questions.length > 0) {
+              const factory = exam.questions[0].factory;
+              if (factory) factories.add(factory);
+            }
+          });
+          factoryOptions.value = Array.from(factories).sort().map((factory) => ({ label: factory, value: factory }));
+        };
+
+        const handleFactoryFilter = () => {
+          saveSelectedFactory(selectedFactory.value);
+          if (filteredTableData.value.length === 0 && selectedFactory.value) {
+            ElementPlus.ElMessage.warning(`没有找到${selectedFactory.value}的答题数据`);
+          }
+        };
+
+        const filteredTableData = computed(() => {
+          if (!selectedFactory.value) return tableData.value;
+          return tableData.value.filter((row) => {
+            return (
+              row.questions &&
+              row.questions.length > 0 &&
+              row.questions[0].factory === selectedFactory.value
+            );
+          });
+        });
+
+        const refreshData = async () => {
+          if (refreshCooldown.value > 0) return;
+          try {
+            loading.value = true;
+            const [, syncedCount] = await Promise.all([
+              fetchExamData(),
+              fetchCompletedExamsFromBackend()
+            ]);
+            if (syncedCount > 0) {
+              ElementPlus.ElMessage.success('已从后台同步答题状态');
+            }
+          } finally {
+            loading.value = false;
+            startCooldown();
+          }
+        };
+
+        const handleStartExam = (row) => {
+          if (!selectedFactory.value) {
+            ElementPlus.ElMessage.error('请先选择工作所在地厂区，再参与答题！');
+            return;
+          }
+          
+          var userInfo = JSON.parse(localStorage.getItem("userInfo"));
+          const examId = row.id;
+          window.location.href = `start-exam.html?examId=${examId}&code=${strToBase64(userInfo.jobNum)}`;
+         // window.location.href = `start-exam.html?examId=${examId}&code=${strToBase64("ALS8594")}`; // 测试用
+        };
+
+        const strToBase64 = (str) => {
+          const utf8Str = unescape(encodeURIComponent(str));
+          return btoa(utf8Str);
+        }
+
+        const base64ToStr = (base64Str) => {
+          const utf8Str = atob(base64Str);
+          return decodeURIComponent(escape(utf8Str));
+        }
+        
+        onMounted(async () => {
+          isLoading.value = true;
+          restoreCooldown();
+          await initPage();
+          loadSavedFactory();
+          fetchExamData();
+          await loadCompletedExams();
+          // DEBUG 模式下页面加载即自动调用后端接口，方便观察
+          if (DEBUG_MODE) {
+            console.log('[DEBUG] onMounted -> 自动调用 fetchCompletedExamsFromBackend');
+            await fetchCompletedExamsFromBackend();
+          }
+        });
+
+        return {
+          tableData,
+          loading,
+          isLoading,
+          userName,
+          lastUpdateTime,
+          selectedFactory,
+          factoryOptions,
+          filteredTableData,
+          formatDate,
+          isToday,
+          getRowClassName,
+          handleFactoryFilter,
+          refreshData,
+          refreshCooldown,
+          handleStartExam,
+          isExamCompleted,
+          isExamCorrect,
+        };
+      },
+    })
+      .use(ElementPlus)
+      .mount("#app");
+  </script>
+</body>
+
+</html>

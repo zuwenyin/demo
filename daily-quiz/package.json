@@ -1,0 +1,23 @@
+{
+  "name": "daily-quiz",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "调用 ehs30sfun-cdn 的考试数据接口并打印调用结果",
+  "scripts": {
+    "start": "tsx src/fetch-exam-data.ts",
+    "simulate": "tsx src/simulate-answer.ts",
+    "payload": "tsx src/build-submit-payload.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "run:dist": "node dist/fetch-exam-data.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "sm-crypto": "^0.5.7"
+  }
+}

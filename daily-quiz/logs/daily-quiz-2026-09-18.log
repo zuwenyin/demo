@@ -1,0 +1,575 @@
+﻿[2026-09-18 16:48:25] ==================== 运行开始 ====================
+[2026-09-18 16:48:25] 日志文件 : D:\testCode\demo\daily-quiz\logs\daily-quiz-2026-09-18.log
+[2026-09-18 16:48:25] 工作目录 : D:\testCode\demo\daily-quiz
+[2026-09-18 16:48:25] node     : D:\MySoft\mise\mise-data\shims\node.exe
+
+▶ 1/5 指针文件 ────────────────────────────────────────────────────────────────
+请求  GET https://ehs30sfun-cdn.asymchem.com.cn/exam-data/exam_data_latest.json
+响应  HTTP 200 OK  265ms  55 字节
+
+响应头：
+  accept-ranges: bytes
+  age: 197
+  ali-swift-global-savetime: 1789721109
+  connection: keep-alive
+  content-length: 55
+  content-md5: Gj7Aj+AD9o/AzSlp5po2tQ==
+  content-type: application/json
+  date: Fri, 18 Sep 2026 08:45:09 GMT
+  eagleid: 7d271bd717897213067267481e
+  etag: "1A3EC08FE003F68FC0CD2969E69A36B5"
+  last-modified: Fri, 18 Sep 2026 07:30:15 GMT
+  server: Tengine
+  timing-allow-origin: *
+  via: cache58.l2cn8045[182,182,304-0,H], cache45.l2cn8045[183,0], kunlun3.cn8037[0,0,200-0,H], kunlun3.cn8037[2,0]
+  x-cache: HIT TCP_MEM_HIT dirn:-2:-2
+  x-oss-cdn-auth: success
+  x-oss-hash-crc64ecma: 13256751720807235835
+  x-oss-object-type: Normal
+  x-oss-request-id: 6AACFA15F275553134581ADA
+  x-oss-server-time: 16
+  x-oss-storage-class: Standard
+  x-swift-cachetime: 300
+  x-swift-savetime: Fri, 18 Sep 2026 08:45:09 GMT
+
+响应体：
+{
+  "current": "exam_data_2026-09-18_15-30-00.json"
+}
+
+解析 current = exam_data_2026-09-18_15-30-00.json
+继续调用   https://ehs30sfun-cdn.asymchem.com.cn/exam-data/exam_data_2026-09-18_15-30-00.json?t=5965737
+
+▶ 2/5 数据文件 ────────────────────────────────────────────────────────────────
+请求  GET https://ehs30sfun-cdn.asymchem.com.cn/exam-data/exam_data_2026-09-18_15-30-00.json?t=5965737
+响应  HTTP 200 OK  97ms  382243 字节
+
+响应头：
+  age: 182
+  ali-swift-global-savetime: 1789721124
+  connection: keep-alive
+  content-encoding: gzip
+  content-length: 53221
+  content-md5: fS76p3L2ck9Kczf3lWwNQw==
+  content-type: application/json
+  date: Fri, 18 Sep 2026 08:45:24 GMT
+  eagleid: 7d271bd517897213067941825e
+  last-modified: Fri, 18 Sep 2026 07:30:15 GMT
+  server: Tengine
+  timing-allow-origin: *
+  vary: Accept-Encoding
+  via: ens-cache35.l2cn7329[53,53,200-0,M], ens-cache42.l2cn7329[55,0], kunlun6.cn8037[0,0,200-0,H], kunlun1.cn8037[1,0]
+  x-cache: HIT TCP_MEM_HIT dirn:-2:-2
+  x-oss-cdn-auth: success
+  x-oss-hash-crc64ecma: 2051629772628286675
+  x-oss-object-type: Normal
+  x-oss-request-id: 6AACFA2435C3503536C252DA
+  x-oss-server-time: 8
+  x-oss-storage-class: Standard
+  x-swift-cachetime: 300
+  x-swift-savetime: Fri, 18 Sep 2026 08:45:24 GMT
+
+响应体：已省略 382243 字节（用 --full 打印完整内容，或用 --out <文件> 保存）
+
+▶ TJ2 厂区 · 每日列表前 3 条 ──────────────────────────────────────────────────────
+过滤条件 : questions[0].factory === "TJ2"；接口共 280 条，匹配 42 条（顺序与列表页一致）
+
+[1] id = 850128069288005
+    列表显示名 : TJ2-20260918试卷
+    试卷名称   : TJ2-20260918试卷
+    厂区 / 类别: TJ2 / 公共题
+    日期       : 2026-09-18
+    有效期     : 2026-09-18T00:00:00 ~ 2027-09-18T15:20:00.187
+    题目       : [多选题] id=826692026257494 分值=1
+    题干       : 【EHS-080.04安全风险隐患排查与预防整改管理】综合性排查是指以（）各要素落实情况为重点开展的全面检查
+    答题参数   : start-exam.html?examId=850128069288005
+
+[2] id = 850128069427269
+    列表显示名 : TJ2-20260918试卷
+    试卷名称   : TJ2-20260918试卷
+    厂区 / 类别: TJ2 / 制剂生产
+    日期       : 2026-09-18
+    有效期     : 2026-09-18T00:00:00 ~ 2027-09-18T15:20:00.22
+    题目       : [多选题] id=850032350769349 分值=1
+    题干       : 生产车间内使用聚乙烯PE管输送液体，关于低风险的工况的判断正确的是那两项？
+    答题参数   : start-exam.html?examId=850128069427269
+
+[3] id = 850128069439557
+    列表显示名 : TJ2-20260918试卷
+    试卷名称   : TJ2-20260918试卷
+    厂区 / 类别: TJ2 / 化学实验室
+    日期       : 2026-09-18
+    有效期     : 2026-09-18T00:00:00 ~ 2027-09-18T15:20:00.223
+    题目       : [判断题] id=850033372676165 分值=1
+    题干       : 对于使用强腐蚀/刺激性、易致敏、EHS重点关注化学品时除做好必要的劳动保护外还应提前通知 临近实验人员，结合操作规范的要求在通风橱上方粘贴对应的危化品警示标识（象形图），同时必 须充分考虑工艺/操作的...
+    答题参数   : start-exam.html?examId=850128069439557
+
+（TJ2 共 42 条，已显示前 3 条）
+
+▶ 3/5 题目详情（TJ2 · 范围 all，命中 3 份） ───────────────────────────────────────────
+范围来源 : config.js 的 QUIZ_SCOPE = "all"（当天该厂区全部试卷）
+类别过滤 : 不按类别过滤（all）
+仅当天   : 是
+
+命中试卷：
+  [1] 850128069288005 | 公共题 | TJ2-20260918试卷 | 2026-09-18
+  [2] 850128069427269 | 制剂生产 | TJ2-20260918试卷 | 2026-09-18
+  [3] 850128069439557 | 化学实验室 | TJ2-20260918试卷 | 2026-09-18
+
+—— 公共题｜TJ2-20260918试卷（examId=850128069288005）——
+题目数量   : 1
+
+  ── 第 1 题 ──────────────────────────────
+  [01] 多选题   分值 1   题目 id 826692026257494
+  题干：
+  【EHS-080.04安全风险隐患排查与预防整改管理】综合性排查是指以（）各要素落实情况为重点开展的全面检查
+  选项（页面上单选/多选会随机打乱顺序，这里按接口原始顺序展示）：
+    A. 安全生产责任制   ← 正确答案
+    B. 各项专业管理制度   ← 正确答案
+    C. 安全生产管理制度   ← 正确答案
+    D. 化工过程安全管理   ← 正确答案
+  正确答案：ABCD（多选，字母已排序）
+  解析：
+  EHS-080.04安全风险隐患排查与预防整改管理
+
+—— 制剂生产｜TJ2-20260918试卷（examId=850128069427269）——
+题目数量   : 1
+
+  ── 第 1 题 ──────────────────────────────
+  [01] 多选题   分值 1   题目 id 850032350769349
+  题干：
+  生产车间内使用聚乙烯PE管输送液体，关于低风险的工况的判断正确的是那两项？
+  选项（页面上单选/多选会随机打乱顺序，这里按接口原始顺序展示）：
+    A. 根据工艺要求准备聚乙烯PE管线输送不易燃的纯水相，且该区域内不存在任何易燃溶剂，不会出现爆炸性气体混合物，就不存在静电引燃的风险。如：纯化水间使用。   ← 正确答案
+    B. 甲类生产车间内，只要A项目车间内使用聚乙烯PE管线输送不易燃水相，附近其他项目使用金属管线输送易燃溶剂体系，就是静电低风险。
+    C. 在非爆炸危险区（任何操作工况，该区域均不会出现爆炸性气体环境），使用聚乙烯管输送非易燃水相液体，就是静电低风险。   ← 正确答案
+    D. 在非爆炸危险区内，处理大量高电导率的酸性甲苯溶液，使用聚乙烯PE管路，为低风险工况。
+  正确答案：AC（多选，字母已排序）
+  解析：
+  静电安全
+
+—— 化学实验室｜TJ2-20260918试卷（examId=850128069439557）——
+题目数量   : 1
+
+  ── 第 1 题 ──────────────────────────────
+  [01] 判断题   分值 1   题目 id 850033372676165
+  题干：
+  对于使用强腐蚀/刺激性、易致敏、EHS重点关注化学品时除做好必要的劳动保护外还应提前通知
+  临近实验人员，结合操作规范的要求在通风橱上方粘贴对应的危化品警示标识（象形图），同时必
+  须充分考虑工艺/操作的合理性，直至体系淬灭方能摘下危化品警示标识（象形图）
+  选项：
+    A. 正确 (Correct)   ← 正确答案
+    B. 错误 (Incorrect)
+  正确答案：A（数据里存的是“对”，提交时也按这个值发）
+  解析：
+  科研人员手册
+
+配置（用于构建提交体，来自 config.js）：
+config.js        : D:\testCode\demo\daily-quiz\config.js
+VITE_API_URL     : https://ehs30sfun.asymchem.com.cn
+SM2 公钥         : 0484C7466D950E120E5ECE5DD85D0C90EAA85081A3A2BD7C57AE6DC822EFCCBD66620C67B0103FC8DD280E36C3B282977B722AAEC3C56518EDCEBAFB72C5A05312
+     公钥长度    : 130 个 hex 字符（带 04 前缀）
+SM2 私钥(自检用) : 8EDB615B...A111（64 hex）
+工号配置         : ALS12556（共 1 个，来自 QUIZ_JOB_NUMBERS）
+答题范围         : all
+厂区             : TJ2
+仅当天           : true
+提交地址         : https://ehs30sfun.asymchem.com.cn/api/StudentExam/SubmitByHtml
+Content-Type     : application/json
+
+待提交清单：3 份试卷 × 1 个工号 = 3 次提交
+  答题范围：all（config.js 的 QUIZ_SCOPE = "all"（当天该厂区全部试卷））
+  试卷：公共题(id=850128069288005)、制剂生产(id=850128069427269)、化学实验室(id=850128069439557)
+  工号：ALS12556
+
+4/5 提交请求体 · 公共题｜id=850128069288005 · 工号 ALS12556
+  Code : QUxTMTI1NTY=（config.js 的 QUIZ_JOB_NUMBERS（共 1 个工号））
+  明文 : {"ExaminationId":850128069288005,"Code":"QUxTMTI1NTY=","Answers":[{"QuestionId":826692026257494,"AnswerContent":"ABCD"}]}
+  密文 : 043bc3c92e386da251689b6a38ef71693d38006e2720ca8e134d019a381c4f607dd41e703ece01f7c7d46dc0e0272236b44a49791a490aca82e238fb55276332e9fcc6d62078a6cc4b5ed016a2075e835e899358ea58316fc7bcae977d015f126dc3331d88564b69f35b16b3b45d9cceb53d505410de9db1646cfa7abfbd6deaa2f41c16a4a663f8cb5bd1812cd877dbf5ce6c35f2c12bd7c967b212ad3d0426ab4726c0bb60bfd5df62e0b5ad5d64e27e3cb508b2735084c8256db169c178a6b3bb2def3ce08758a4e00db19a6e5b4aa6ca6b5aef6ff182fee1b4e98879c87ebdb0cf444ccba4d02175c96aa13debf46d3aeef0dd10fd8b4f1a08fc9de34748f6bf36947db614c6acf5f92801c4d5dfec60ff48
+  body : 552 字节（裸 hex 字符串）
+  自检 : 解密后与明文一致
+
+4/5 提交请求体 · 制剂生产｜id=850128069427269 · 工号 ALS12556
+  Code : QUxTMTI1NTY=（config.js 的 QUIZ_JOB_NUMBERS（共 1 个工号））
+  明文 : {"ExaminationId":850128069427269,"Code":"QUxTMTI1NTY=","Answers":[{"QuestionId":850032350769349,"AnswerContent":"AC"}]}
+  密文 : 0452fc57266b37544e8c58ea3d8e6085db264d84619622668cdf240eccf07c37dddf8e2cba6bb5b2adabd782ad95db6c19e22dcf4f78af5bccee1413c9321e54667b56b9bf22458091af787702e75350faaf09104d990f7d6bef0ae7ea040eaee5bf20df5e5219a30f6cb600fc0a331520b1c3f6474444ab11abab74e8b3ed84bfb5b726b81134068da44f4599c4f16f74c3b4991148c525959abcf14510e78968dbba7724a5105ff823a4cd4bbc459ab6252d68c8f6dfc1d5f53177f7eb17aa20e34dd83f2d2c3bb5654ff28dc34febf41532ca7a27f80a01b016992b7552c27b019b001e14aaa0b39574aa729b073dfa2efb266bd0d119c8a02c2c63cf419438c0ab64aaa08bce19dff6523a53391ee9d1
+  body : 548 字节（裸 hex 字符串）
+  自检 : 解密后与明文一致
+
+4/5 提交请求体 · 化学实验室｜id=850128069439557 · 工号 ALS12556
+  Code : QUxTMTI1NTY=（config.js 的 QUIZ_JOB_NUMBERS（共 1 个工号））
+  明文 : {"ExaminationId":850128069439557,"Code":"QUxTMTI1NTY=","Answers":[{"QuestionId":850033372676165,"AnswerContent":"对"}]}
+  密文 : 046a690a1993c45ebf0fd1f57d328276509fe645efc67766956e9b1cf14d16843f2f9bedecf305cf56a682c121efda5a13e02442517cd2607eb812488ff3f9bc8c1f1d219a31c2017663f5d74e2fff2355847e710513d35b187160189186405bf5cbc52741a230e547ae78618e3f9e1b119ccd1c56872bbd7c1bed6ced9f46aa7bf50329a165c935430b05ba668cb47e7141b2618e144993cab968282d2a254df31bd8be17c01151e26cd86aab1a8a8d9717e2a444b73d2e85509beecfa740a46b8bfc3ecd3ac201881d8bdae9d2db7457328b852c6542fb9ec0d1f008addb5a0ec411bfec651a7d8aa4a84ef610c5748e40cbc91472f59dd397e1fd5393b49423537a251dbb389e5f7fd29883893a098510f016a69fc97536
+  body : 562 字节（裸 hex 字符串）
+  自检 : 解密后与明文一致
+
+▶ 5/5 提交答题 · 公共题｜id=850128069288005 · 工号 ALS12556（1/3） ────────────────────
+POST      https://ehs30sfun.asymchem.com.cn/api/StudentExam/SubmitByHtml
+Content-Type : application/json
+body 形态 : 裸 hex 密文字符串（与页面 axios 行为一致）
+body 长度 : 552 字节
+密文格式  : C1 带 04 前缀（与页面 SmCryptoV2 一致）
+请求超时  : 15000ms
+
+HTTP 200 OK   210ms
+
+响应头：
+  asymchem.admin: Asymchem.Admin
+  connection: keep-alive
+  content-language: zh-CN
+  content-type: application/json; charset=utf-8
+  date: Fri, 18 Sep 2026 08:48:25 GMT
+  environment: Production
+  furion: 4.9.4.4
+  server: nginx
+  strict-transport-security: max-age=31536000; includeSubDomains; preload, max-age=31536000; includeSubDomains; preload
+  transfer-encoding: chunked
+  x-content-type-options: nosniff
+  x-frame-options: SAMEORIGIN, SAMEORIGIN
+  x-rate-limit-limit: 1d
+  x-rate-limit-remaining: 8637642
+  x-rate-limit-reset: 2026-09-18T22:56:14.2219360Z
+  x-xss-protection: 1; mode=block
+
+原始响应体：
+{"code":200,"type":"success","message":"","errMsg":"","result":"041941005af651eb1de501e204124f6fdfae12cecdf3b3a56153fe28c6029fee543b96d59b41ab990f1b29e9490f151c0787de95fcd7683b3506087e6b001d599d16a76229218a56e8684d5c7ba8f6191fbcd2ae91256f0c937cf8c82052b3e55a7c92151c5ab511d7d8c390e839b76d089ff9b5a01690075dcb17d6094c21bd2c45b09266e31602719f742dac9d1bba7ca0a293a86f4522ee8543fa92eb754ee53e39576e61fd51a3c0131c35e87332f2f54aeb039d34a86178d1e9b4ae0ad2520bf1549d0ddefb8975916e28065513217a10b2b68e1d44b881d9ea4d376078b78ba122f17c4979af90bf3c73122f11854844512979d9845514ae1f3e1987e550a85da5c8d2c7172371d9fa04fbdf2d86ec256fe6b7","extras":null,"time":"2026-09-18T16:48:27.5737071+08:00"}
+
+业务字段（按页面拦截器逻辑处理）：
+  code    : 200
+  message : -
+  result  : {"studentExamRecordId":0,"totalScore":0,"obtainedScore":0,"percentageScore":0,"isPassed":false,"passingScore":1,"status":"already_submitted","message":"您已经参加过该考试"}
+
+判定：
+  已参与过该考试（result.status = already_submitted）
+  历史结果 isPassed = false
+
+▶ 5/5 提交答题 · 制剂生产｜id=850128069427269 · 工号 ALS12556（2/3） ───────────────────
+POST      https://ehs30sfun.asymchem.com.cn/api/StudentExam/SubmitByHtml
+Content-Type : application/json
+body 形态 : 裸 hex 密文字符串（与页面 axios 行为一致）
+body 长度 : 548 字节
+密文格式  : C1 带 04 前缀（与页面 SmCryptoV2 一致）
+请求超时  : 15000ms
+
+HTTP 200 OK   280ms
+
+响应头：
+  asymchem.admin: Asymchem.Admin
+  connection: keep-alive
+  content-language: zh-CN
+  content-type: application/json; charset=utf-8
+  date: Fri, 18 Sep 2026 08:48:26 GMT
+  environment: Production
+  furion: 4.9.4.4
+  server: nginx
+  strict-transport-security: max-age=31536000; includeSubDomains; preload, max-age=31536000; includeSubDomains; preload
+  transfer-encoding: chunked
+  x-content-type-options: nosniff
+  x-frame-options: SAMEORIGIN, SAMEORIGIN
+  x-rate-limit-limit: 1d
+  x-rate-limit-remaining: 8637640
+  x-rate-limit-reset: 2026-09-18T22:56:14.2219360Z
+  x-xss-protection: 1; mode=block
+
+原始响应体：
+{"code":200,"type":"success","message":"","errMsg":"","result":"0445f75ceff7a416c907305ec21ecb136aa7b6f272c4fae4210aaf360eaaddb96157d100f68da44f99321e0f5e14ee2b4bfb5f376b7913f4e63d7ce514501c9a797613f9a5fe415fd641fc3a09b2463901107abf043044334c420f694a67c510cbae72c0e0c9978226373df9302f665239c176a23c4ebf4a72024147568ccf3bc8a115054ef99d710dc6aee2561cc86ea0caa890e2d9e871778d6a948e30b5f67a67a78254c027e90f27f8fa355a7d59c81e3eb027686f6f49034bb42ccd0becf91fe95f3a24848fa95461b3018c9a2c5eaba5a3ad01c6e3e6733141aff26af1efa95bca9e2f4412b1f8d47abc55a7c5bd20799a8e8fab2e3b19fd3840f6b50816f0ae84db2ac8f69f380aa76246e1232defc844469c","extras":null,"time":"2026-09-18T16:48:27.8753137+08:00"}
+
+业务字段（按页面拦截器逻辑处理）：
+  code    : 200
+  message : -
+  result  : {"studentExamRecordId":0,"totalScore":0,"obtainedScore":0,"percentageScore":0,"isPassed":false,"passingScore":1,"status":"already_submitted","message":"您已经参加过该考试"}
+
+判定：
+  已参与过该考试（result.status = already_submitted）
+  历史结果 isPassed = false
+
+▶ 5/5 提交答题 · 化学实验室｜id=850128069439557 · 工号 ALS12556（3/3） ──────────────────
+POST      https://ehs30sfun.asymchem.com.cn/api/StudentExam/SubmitByHtml
+Content-Type : application/json
+body 形态 : 裸 hex 密文字符串（与页面 axios 行为一致）
+body 长度 : 562 字节
+密文格式  : C1 带 04 前缀（与页面 SmCryptoV2 一致）
+请求超时  : 15000ms
+
+HTTP 200 OK   213ms
+
+响应头：
+  asymchem.admin: Asymchem.Admin
+  connection: keep-alive
+  content-language: zh-CN
+  content-type: application/json; charset=utf-8
+  date: Fri, 18 Sep 2026 08:48:26 GMT
+  environment: Production
+  furion: 4.9.4.4
+  server: nginx
+  strict-transport-security: max-age=31536000; includeSubDomains; preload, max-age=31536000; includeSubDomains; preload
+  transfer-encoding: chunked
+  x-content-type-options: nosniff
+  x-frame-options: SAMEORIGIN, SAMEORIGIN
+  x-rate-limit-limit: 1d
+  x-rate-limit-remaining: 8638252
+  x-rate-limit-reset: 2026-09-19T06:06:27.1934987Z
+  x-xss-protection: 1; mode=block
+
+原始响应体：
+{"code":200,"type":"success","message":"","errMsg":"","result":"04a4992295a8515825699294bb71e07713723fd5963950b6c6c17657742affc96ea80586fa712874abfdd4160e04f4d6caa524c76e4a3629333ec786d79fa5d81d03e70b885deb59dbc010c208eb0f2f195c0adceda2649b36e26f8189772427e29202e7d3389228691d67054a1a0a211d16169973c42cfeb156ccea32ea6411377378c6b39512a1ca390656fb1f8550d24f314fc0f33cb2bfe81fa0f104d69f6733d689080126d1d34f9f157204db8f61939e5db49c8a57e31b0860d9ae48c25d168ad959cae4a8dd02657cdda9fd680a2d3f7b49237734136b8373b27eaf412c1adb644d4c4e053d5501da083295ca0d68fde881f1fa3067e9b5df9d1fe0f12d39db27a746df699764c5e94eb50edd0269e1de0918","extras":null,"time":"2026-09-18T16:48:28.1104952+08:00"}
+
+业务字段（按页面拦截器逻辑处理）：
+  code    : 200
+  message : -
+  result  : {"studentExamRecordId":0,"totalScore":0,"obtainedScore":0,"percentageScore":0,"isPassed":false,"passingScore":1,"status":"already_submitted","message":"您已经参加过该考试"}
+
+判定：
+  已参与过该考试（result.status = already_submitted）
+  历史结果 isPassed = false
+
+▶ 提交汇总 ────────────────────────────────────────────────────────────────────
+  提交次数 : 3
+  成功数   : 3
+  全部提交完成
+[2026-09-18 16:48:28] ==================== 运行结束：退出码 0，耗时 2.9s ====================
+[2026-09-18 16:55:16] ==================== 运行开始 ====================
+[2026-09-18 16:55:16] 日志文件 : D:\testCode\demo\daily-quiz\logs\daily-quiz-2026-09-18.log
+[2026-09-18 16:55:16] 工作目录 : D:\testCode\demo\daily-quiz
+[2026-09-18 16:55:16] node     : D:\MySoft\mise\mise-data\shims\node.exe
+
+▶ 1/5 指针文件 ────────────────────────────────────────────────────────────────
+请求  GET https://ehs30sfun-cdn.asymchem.com.cn/exam-data/exam_data_latest.json
+响应  HTTP 200 OK  330ms  55 字节
+
+响应头：
+  accept-ranges: bytes
+  age: 8
+  ali-swift-global-savetime: 1789721710
+  connection: keep-alive
+  content-length: 55
+  content-md5: Gj7Aj+AD9o/AzSlp5po2tQ==
+  content-type: application/json
+  date: Fri, 18 Sep 2026 08:55:10 GMT
+  eagleid: 7d271bdc17897217180902398e
+  etag: "1A3EC08FE003F68FC0CD2969E69A36B5"
+  last-modified: Fri, 18 Sep 2026 07:30:15 GMT
+  server: Tengine
+  timing-allow-origin: *
+  via: cache58.l2cn8045[0,0,304-0,H], cache55.l2cn8045[0,0], kunlun3.cn8037[0,0,200-0,H], kunlun8.cn8037[2,0]
+  x-cache: HIT TCP_MEM_HIT dirn:-2:-2
+  x-oss-cdn-auth: success
+  x-oss-hash-crc64ecma: 13256751720807235835
+  x-oss-object-type: Normal
+  x-oss-request-id: 6AACFC6E558E6035383919CC
+  x-oss-server-time: 16
+  x-oss-storage-class: Standard
+  x-swift-cachetime: 300
+  x-swift-savetime: Fri, 18 Sep 2026 08:55:10 GMT
+
+响应体：
+{
+  "current": "exam_data_2026-09-18_15-30-00.json"
+}
+
+解析 current = exam_data_2026-09-18_15-30-00.json
+继续调用   https://ehs30sfun-cdn.asymchem.com.cn/exam-data/exam_data_2026-09-18_15-30-00.json?t=5965739
+
+▶ 2/5 数据文件 ────────────────────────────────────────────────────────────────
+请求  GET https://ehs30sfun-cdn.asymchem.com.cn/exam-data/exam_data_2026-09-18_15-30-00.json?t=5965739
+响应  HTTP 200 OK  1252ms  382243 字节
+
+响应头：
+  ali-swift-global-savetime: 1789721719
+  connection: keep-alive
+  content-encoding: gzip
+  content-md5: fS76p3L2ck9Kczf3lWwNQw==
+  content-type: application/json
+  date: Fri, 18 Sep 2026 08:55:19 GMT
+  eagleid: 7d271bd817897217191645648e
+  last-modified: Fri, 18 Sep 2026 07:30:15 GMT
+  server: Tengine
+  timing-allow-origin: *
+  transfer-encoding: chunked
+  vary: Accept-Encoding
+  via: ens-cache24.l2cn9026[145,144,200-0,M], ens-cache33.l2cn9026[146,0], kunlun10.cn8037[170,169,200-0,M], kunlun4.cn8037[171,0]
+  x-cache: MISS TCP_MISS dirn:-2:-2
+  x-oss-cdn-auth: success
+  x-oss-hash-crc64ecma: 2051629772628286675
+  x-oss-object-type: Normal
+  x-oss-request-id: 6AACFC77CADC2D3935831F7C
+  x-oss-server-time: 24
+  x-oss-storage-class: Standard
+  x-swift-cachetime: 300
+  x-swift-savetime: Fri, 18 Sep 2026 08:55:19 GMT
+
+响应体：已省略 382243 字节（用 --full 打印完整内容，或用 --out <文件> 保存）
+
+▶ TJ2 厂区 · 每日列表前 3 条 ──────────────────────────────────────────────────────
+过滤条件 : questions[0].factory === "TJ2"；接口共 280 条，匹配 42 条（顺序与列表页一致）
+
+[1] id = 850128069288005
+    列表显示名 : TJ2-20260918试卷
+    试卷名称   : TJ2-20260918试卷
+    厂区 / 类别: TJ2 / 公共题
+    日期       : 2026-09-18
+    有效期     : 2026-09-18T00:00:00 ~ 2027-09-18T15:20:00.187
+    题目       : [多选题] id=826692026257494 分值=1
+    题干       : 【EHS-080.04安全风险隐患排查与预防整改管理】综合性排查是指以（）各要素落实情况为重点开展的全面检查
+    答题参数   : start-exam.html?examId=850128069288005
+
+[2] id = 850128069427269
+    列表显示名 : TJ2-20260918试卷
+    试卷名称   : TJ2-20260918试卷
+    厂区 / 类别: TJ2 / 制剂生产
+    日期       : 2026-09-18
+    有效期     : 2026-09-18T00:00:00 ~ 2027-09-18T15:20:00.22
+    题目       : [多选题] id=850032350769349 分值=1
+    题干       : 生产车间内使用聚乙烯PE管输送液体，关于低风险的工况的判断正确的是那两项？
+    答题参数   : start-exam.html?examId=850128069427269
+
+[3] id = 850128069439557
+    列表显示名 : TJ2-20260918试卷
+    试卷名称   : TJ2-20260918试卷
+    厂区 / 类别: TJ2 / 化学实验室
+    日期       : 2026-09-18
+    有效期     : 2026-09-18T00:00:00 ~ 2027-09-18T15:20:00.223
+    题目       : [判断题] id=850033372676165 分值=1
+    题干       : 对于使用强腐蚀/刺激性、易致敏、EHS重点关注化学品时除做好必要的劳动保护外还应提前通知 临近实验人员，结合操作规范的要求在通风橱上方粘贴对应的危化品警示标识（象形图），同时必 须充分考虑工艺/操作的...
+    答题参数   : start-exam.html?examId=850128069439557
+
+（TJ2 共 42 条，已显示前 3 条）
+
+▶ 3/5 题目详情（TJ2 · 范围 public，命中 1 份） ────────────────────────────────────────
+范围来源 : config.js 的 QUIZ_SCOPE = "public"（类别：公共题）
+类别过滤 : 公共题
+仅当天   : 是
+
+命中试卷：
+  [1] 850128069288005 | 公共题 | TJ2-20260918试卷 | 2026-09-18
+
+—— 公共题｜TJ2-20260918试卷（examId=850128069288005）——
+题目数量   : 1
+
+  ── 第 1 题 ──────────────────────────────
+  [01] 多选题   分值 1   题目 id 826692026257494
+  题干：
+  【EHS-080.04安全风险隐患排查与预防整改管理】综合性排查是指以（）各要素落实情况为重点开展的全面检查
+  选项（页面上单选/多选会随机打乱顺序，这里按接口原始顺序展示）：
+    A. 安全生产责任制   ← 正确答案
+    B. 各项专业管理制度   ← 正确答案
+    C. 安全生产管理制度   ← 正确答案
+    D. 化工过程安全管理   ← 正确答案
+  正确答案：ABCD（多选，字母已排序）
+  解析：
+  EHS-080.04安全风险隐患排查与预防整改管理
+
+配置（用于构建提交体，来自 config.js）：
+config.js        : D:\testCode\demo\daily-quiz\config.js
+VITE_API_URL     : https://ehs30sfun.asymchem.com.cn
+SM2 公钥         : 0484C7466D950E120E5ECE5DD85D0C90EAA85081A3A2BD7C57AE6DC822EFCCBD66620C67B0103FC8DD280E36C3B282977B722AAEC3C56518EDCEBAFB72C5A05312
+     公钥长度    : 130 个 hex 字符（带 04 前缀）
+SM2 私钥(自检用) : 8EDB615B...A111（64 hex）
+工号配置         : ALS12556（共 1 个，来自 QUIZ_JOB_NUMBERS）
+答题范围         : public
+厂区             : TJ2
+仅当天           : true
+提交地址         : https://ehs30sfun.asymchem.com.cn/api/StudentExam/SubmitByHtml
+Content-Type     : application/json
+
+待提交清单：1 份试卷 × 1 个工号 = 1 次提交
+  答题范围：public（config.js 的 QUIZ_SCOPE = "public"（类别：公共题））
+  试卷：公共题(id=850128069288005)
+  工号：ALS12556
+
+▶ 4/5 提交请求体（SM2 加密） ───────────────────────────────────────────────────────
+试卷 id   : 850128069288005
+试卷名称  : TJ2-20260918试卷
+厂区/类别 : TJ2 / 公共题
+Code      : QUxTMTI1NTY=    （config.js 的 QUIZ_JOB_NUMBERS（共 1 个工号））
+题目数量  : 1
+
+作答明细（按正确答案反推）
+  [01] 多选题  题目 id=826692026257494
+       题干          : 【EHS-080.04安全风险隐患排查与预防整改管理】综合性排查是指以（）各要素落实情况为重点开展的全面检查
+       correctAnswer : "ABCD"  ->  AnswerContent = "ABCD"
+
+明文（JSON.stringify 的原文）：
+{"ExaminationId":850128069288005,"Code":"QUxTMTI1NTY=","Answers":[{"QuestionId":826692026257494,"AnswerContent":"ABCD"}]}
+
+（美化展示）
+{
+  "ExaminationId": 850128069288005,
+  "Code": "QUxTMTI1NTY=",
+  "Answers": [
+    {
+      "QuestionId": 826692026257494,
+      "AnswerContent": "ABCD"
+    }
+  ]
+}
+
+encodeURIComponent 之后的明文：
+%7B%22ExaminationId%22%3A850128069288005%2C%22Code%22%3A%22QUxTMTI1NTY%3D%22%2C%22Answers%22%3A%5B%7B%22QuestionId%22%3A826692026257494%2C%22AnswerContent%22%3A%22ABCD%22%7D%5D%7D
+
+SM2 密文（hex，每次随机生成）：
+格式 A（推荐，与页面 SmCryptoV2 / iiiii.js 一致，C1 带 04 前缀）：552 hex = 276 字节
+0482a929246d9ce489c3bbfb45c74358efcc7298d054f0cb954c38d655f26ee32d2911f721ecdc91eaa0661ea9381e425478b0fbdfc4954148214e7017c960a2f7a0bd9a7f4c202e974dc878541d8c8de688d512db4b40c75d808047a0f221e90a051792b8c20d2545d593ff353dc16edeb60b9912d9d992b5b2411a0cd638dce8b56dd00f3921a69a44cdf31fc2e2c214aa31cb4bcb374619943e8294afceb276a7d936665982286652d2ee9aa19b82646e37064b2a87e2334f43276fe699a0a64db36eeba4e727804811f5530d432c38ff6671675aa0fe6bb1a54201a9ebee0b125abd402b0aea27b73dee4e354b82c0802d9cddfae8a2064dbd5d0f4d4b2a73554b54c21d5a61ccf92d290667bba96e0df606
+
+格式 B（sm-crypto 0.5.7 的原始输出，不带 04 前缀）：550 hex = 275 字节
+82a929246d9ce489c3bbfb45c74358efcc7298d054f0cb954c38d655f26ee32d2911f721ecdc91eaa0661ea9381e425478b0fbdfc4954148214e7017c960a2f7a0bd9a7f4c202e974dc878541d8c8de688d512db4b40c75d808047a0f221e90a051792b8c20d2545d593ff353dc16edeb60b9912d9d992b5b2411a0cd638dce8b56dd00f3921a69a44cdf31fc2e2c214aa31cb4bcb374619943e8294afceb276a7d936665982286652d2ee9aa19b82646e37064b2a87e2334f43276fe699a0a64db36eeba4e727804811f5530d432c38ff6671675aa0fe6bb1a54201a9ebee0b125abd402b0aea27b73dee4e354b82c0802d9cddfae8a2064dbd5d0f4d4b2a73554b54c21d5a61ccf92d290667bba96e0df606
+
+两种格式只差开头 1 个字节（04 是未压缩点标识）；页面的 DecryptString 会按前两位判断，两种都能解。
+
+POST body 的两种形态（基于格式 A）：
+形态 A（裸 hex 字符串）      : 552 字节
+  0482a929246d9ce489c3bbfb45c74358efcc7298d054f0cb954c38d655f26ee32d2911f721ecdc91...
+形态 B（JSON 字符串，带引号）: 554 字节
+  "0482a929246d9ce489c3bbfb45c74358efcc7298d054f0cb954c38d655f26ee32d2911f721ecdc9...
+
+请求信息（下一步用这份密文真实提交）：
+  POST https://ehs30sfun.asymchem.com.cn/api/StudentExam/SubmitByHtml
+  Content-Type: application/json
+  body: <上面两种形态之一>
+
+本地解密自检（未调用接口）：
+  格式 A（带 04 前缀）解密成功 : true
+  格式 B（不带 04 前缀）解密成功 : true
+  解密后与明文一致 : true
+  解密内容：{"ExaminationId":850128069288005,"Code":"QUxTMTI1NTY=","Answers":[{"QuestionId":826692026257494,"AnswerContent":"ABCD"}]}
+
+▶ 5/5 提交答题（真实调用 /api/StudentExam/SubmitByHtml） ────────────────────────────
+POST      https://ehs30sfun.asymchem.com.cn/api/StudentExam/SubmitByHtml
+Content-Type : application/json
+body 形态 : 裸 hex 密文字符串（与页面 axios 行为一致）
+body 长度 : 552 字节
+密文格式  : C1 带 04 前缀（与页面 SmCryptoV2 一致）
+请求超时  : 15000ms
+
+HTTP 200 OK   243ms
+
+响应头：
+  asymchem.admin: Asymchem.Admin
+  connection: keep-alive
+  content-language: zh-CN
+  content-type: application/json; charset=utf-8
+  date: Fri, 18 Sep 2026 08:55:17 GMT
+  environment: Production
+  furion: 4.9.4.4
+  server: nginx
+  strict-transport-security: max-age=31536000; includeSubDomains; preload, max-age=31536000; includeSubDomains; preload
+  transfer-encoding: chunked
+  x-content-type-options: nosniff
+  x-frame-options: SAMEORIGIN, SAMEORIGIN
+  x-rate-limit-limit: 1d
+  x-rate-limit-remaining: 8637462
+  x-rate-limit-reset: 2026-09-18T22:56:14.2219360Z
+  x-xss-protection: 1; mode=block
+
+原始响应体：
+{"code":200,"type":"success","message":"","errMsg":"","result":"04a231904719ced041b36b8f51f2dadce3a676f10c83a382812333f5a4df82f1a909f66d390282cfc9bf9e459111384651d7a764c335d0f164cf6bacd267f410649a72dcdc1b8f17b447c00ac00a5ff835c0b24e0e0509d6e9debcbd09b1adfd82ec99edd0eabe054d0773a66abf25284e414a5db16af197ab339610d897803f97d860fc9f752b5c70a0e0d841e3e43e0f59b5717a9dadd8fd81875b77dcb92435f3b8c1ecf64a3751c64c1305fc56c3d848799c236d0e5a33dcc296bc3a8c8c0dd0caad542e6faf0d819dcd4631670cd5e2ca0536633bc1201b66dfd5590d875c4c9c82a1c8f8d515d907cc13760b349de86406d4281c369e932b4f97f928c994c59ddbea1ca9db6188a709b694dfeeac781ec9f3a8","extras":null,"time":"2026-09-18T16:55:19.7148205+08:00"}
+
+业务字段（按页面拦截器逻辑处理）：
+  code    : 200
+  message : -
+  result  : {"studentExamRecordId":0,"totalScore":0,"obtainedScore":0,"percentageScore":0,"isPassed":false,"passingScore":1,"status":"already_submitted","message":"您已经参加过该考试"}
+
+判定：
+  已参与过该考试（result.status = already_submitted）
+  历史结果 isPassed = false
+[2026-09-18 16:55:19] ==================== 运行结束：退出码 0，耗时 3.0s ====================

@@ -1,0 +1,3 @@
+# pnpm 10+ 的依赖构建白名单：esbuild 需要执行 postinstall 以准备二进制
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,4 @@
+Start-ScheduledTask -TaskName DailyQuiz                      # 立即手动跑一次
+Get-ScheduledTaskInfo -TaskName DailyQuiz                    # 上次运行时间 / 结果码
+schtasks /Query /TN DailyQuiz /V /FO LIST                    # 命令行看全部配置
+Unregister-ScheduledTask -TaskName DailyQuiz -Confirm:$false # 删除任务
