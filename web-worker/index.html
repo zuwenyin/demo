@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web Worker + fetch 轮询 Demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f1116;
+        --panel: #171a21;
+        --border: #262b36;
+        --text: #e6e9ef;
+        --muted: #8b93a7;
+        --brand: #4c8dff;
+        --ok: #34d399;
+        --warn: #fbbf24;
+        --error: #f87171;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px 20px 60px;
+        background: radial-gradient(1200px 600px at 50% -10%, #1b2333 0%, var(--bg) 60%);
+        color: var(--text);
+        font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      .wrap {
+        max-width: 920px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 4px;
+        font-size: 22px;
+      }
+
+      .sub {
+        margin: 0 0 24px;
+        color: var(--muted);
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+
+      label {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+
+      input {
+        width: 100%;
+        padding: 9px 11px;
+        background: #0e1117;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 13px;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: var(--brand);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      button {
+        padding: 9px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #20242e;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+
+      button:hover:not(:disabled) {
+        border-color: var(--brand);
+        background: #252b38;
+      }
+
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      button.primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: #20242e;
+        border: 1px solid var(--border);
+        font-size: 12px;
+      }
+
+      .pill::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+
+      .pill[data-polling="true"]::before {
+        background: var(--ok);
+        box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.15);
+      }
+
+      progress {
+        flex: 1;
+        min-width: 200px;
+        height: 10px;
+        border: none;
+        border-radius: 999px;
+        overflow: hidden;
+        background: #0e1117;
+      }
+
+      progress::-webkit-progress-bar {
+        background: #0e1117;
+      }
+
+      progress::-webkit-progress-value {
+        background: linear-gradient(90deg, #4c8dff, #34d399);
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      #log {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 340px;
+        overflow: auto;
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 12.5px;
+      }
+
+      .item {
+        display: flex;
+        gap: 10px;
+        padding: 7px 2px;
+        border-bottom: 1px dashed #22262f;
+      }
+
+      .item:last-child {
+        border-bottom: none;
+      }
+
+      .item__time {
+        color: #5b6479;
+        flex: 0 0 68px;
+      }
+
+      .item__body {
+        word-break: break-all;
+      }
+
+      .item--ok .item__body {
+        color: var(--ok);
+      }
+
+      .item--warn .item__body {
+        color: var(--warn);
+      }
+
+      .item--error .item__body {
+        color: var(--error);
+      }
+
+      .tip {
+        color: var(--muted);
+        font-size: 12px;
+        margin: 10px 0 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Web Worker + fetch 轮询</h1>
+      <p class="sub">网络请求与轮询调度全部在 worker 线程完成，结果通过 postMessage 回传主线程渲染。</p>
+
+      <section class="panel">
+        <div class="grid">
+          <div>
+            <label for="url">轮询地址</label>
+            <input id="url" value="/api/task/status" />
+          </div>
+          <div>
+            <label for="interval">轮询间隔 (ms)</label>
+            <input id="interval" type="number" min="100" step="100" value="1500" />
+          </div>
+          <div>
+            <label for="timeout">单次超时 (ms)</label>
+            <input id="timeout" type="number" min="100" step="100" value="5000" />
+          </div>
+          <div>
+            <label for="maxAttempts">最大请求次数</label>
+            <input id="maxAttempts" type="number" min="1" step="1" value="20" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="start" class="primary">开始轮询</button>
+          <button id="stop" disabled>停止轮询</button>
+          <button id="reset">重置服务端任务</button>
+          <button id="clear">清空日志</button>
+        </div>
+        <p class="tip">接口有约 15% 概率返回 503、并有随机延迟，用于演示超时中断与指数退避重试。</p>
+      </section>
+
+      <section class="panel">
+        <div class="status">
+          <span class="pill" id="state" data-polling="false">空闲</span>
+          <span class="meta">请求次数：<b id="attempts">0</b></span>
+          <span class="meta" id="progress-text">0%</span>
+          <progress id="progress" max="100" value="0"></progress>
+        </div>
+      </section>
+
+      <section class="panel">
+        <ul id="log"></ul>
+      </section>
+    </div>
+
+    <!-- 编译产物：npm run build 会把 src/*.ts 输出到 dist/ -->
+    <script type="module" src="./dist/main.js"></script>
+  </body>
+</html>

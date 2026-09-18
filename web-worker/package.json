@@ -1,0 +1,17 @@
+{
+  "name": "web-worker-polling-demo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Web Worker + fetch 轮询 demo：在 worker 线程轮询接口，把结果 postMessage 回主线程",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "serve": "node server/mock-server.mjs",
+    "dev": "npm run build && npm run serve",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
