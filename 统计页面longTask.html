@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>统计页面longTask</title>
+</head>
+<body>
+  
+</body>
+<script>
+  console.log('1')
+  setTimeout(() => {
+    console.log('2')
+  }, 1000)
+
+  const observer = new PerformanceObserver(list=>{
+    list.getEntries().forEach(entry=>{
+      console.log('Long task Detected:',entry);
+      console.log('Start Time:',entry.startTime,entry.duration);
+      
+    })
+  })
+  observer.observe({entryTypes: ["longtask"]});
+</script>
+</html>

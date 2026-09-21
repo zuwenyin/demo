@@ -62,7 +62,9 @@
       console.log('a4')
     })
 
-    
+    window.addEventListener("beforeunload",(e)=>{
+      e.returnValue ='确定【离开】吗？'
+    })
   </script>
 </body>
 
