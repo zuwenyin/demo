@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>屏幕录制 / 画布录制示例（MediaRecorder）</title>
+  <title>录屏方案对比示例（MediaRecorder 录屏 vs rrweb 录屏）</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- rrweb 相关样式（回放引擎 Replayer 与播放器 UI rrweb-player） -->
+  <link rel="stylesheet" href="https://cdn.rrweb.com/replay/current/dist/style.css" />
+  <link rel="stylesheet" href="https://cdn.rrweb.com/rrweb-player/current/style.css" />
   <style>
     * { box-sizing: border-box; }
     body {
@@ -56,13 +59,39 @@
     canvas { border: 1px dashed #c9cdd4; border-radius: 8px; background: #fff; }
     .empty { font-size: 13px; color: #a8adb5; padding: 40px 0; text-align: center; }
     code { background: #f2f3f5; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    /* rrweb 回放容器 */
+    .rr-host { min-height: 90px; }
+    label.switch {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; color: #4e5969; cursor: pointer; user-select: none;
+    }
+    /* 对比表格 */
+    table.compare { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.compare th, table.compare td {
+      border: 1px solid #e5e6eb; padding: 8px 10px; text-align: left; vertical-align: top; line-height: 1.6;
+    }
+    table.compare th { background: #f7f8fa; font-weight: 600; }
+    table.compare td:first-child { color: #4e5969; white-space: nowrap; }
+    .tag {
+      display: inline-block; padding: 1px 6px; border-radius: 4px;
+      font-size: 12px; background: #eef3ff; color: #4a7cff;
+    }
   </style>
 </head>
 <body>
   <div id="app"></div>
 
+  <!--
+    rrweb：把 DOM 变更、鼠标移动、输入、滚动等记录成 JSON 事件流（不存视频）。
+    UMD 版本暴露全局 rrwebRecord / rrwebReplay / rrwebPlayer，不受 CORS 限制，file:// 下也能直接打开。
+    官方文档：https://rrweb.com/docs/
+  -->
+  <script src="https://cdn.rrweb.com/record/current/dist/record.umd.cjs"></script>
+  <script src="https://cdn.rrweb.com/replay/current/dist/replay.umd.cjs"></script>
+  <script src="https://cdn.rrweb.com/rrweb-player/current/rrweb-player.umd.cjs"></script>
+
   <script>
-    const { ref, reactive, onMounted, onBeforeUnmount } = Vue;
+    const { ref, reactive, computed, onMounted, onBeforeUnmount } = Vue;
 
     Vue.createApp({
       setup() {
@@ -222,6 +251,165 @@
           }
         };
 
+        // ==================== 基于 rrweb 的录屏（DOM 事件流） ====================
+        const rrHostRef = ref(null);
+        const rrState = reactive({
+          recording: false,
+          live: false,
+          eventCount: 0,
+          bytes: 0,
+          status: '未开始'
+        });
+
+        // 事件用普通数组存：rrweb 会高频 emit（mousemove、DOM 变更…），
+        // 若直接 push 进响应式数组，每条事件都会触发整页重渲染，录制本身就会变卡。
+        const rrEvents = [];
+        let rrEventBytes = 0;
+        let rrLastFlush = 0;
+
+        let rrStopFn = null;       // record() 返回的停止函数
+        let rrPlayer = null;       // rrweb-player 实例
+        let rrLiveReplayer = null; // 实时回放（liveMode）的 Replayer 实例
+
+        const rrSizeText = computed(() => (rrState.bytes / 1024).toFixed(1) + ' KB');
+
+        // 把统计信息按 250ms 节流同步到响应式状态，只用于界面展示
+        const flushRrStats = (force) => {
+          const now = Date.now();
+          if (!force && now - rrLastFlush < 250) return;
+          rrLastFlush = now;
+          rrState.eventCount = rrEvents.length;
+          rrState.bytes = rrEventBytes;
+        };
+
+        // rrweb 以 UMD 形式引入，全局变量为 rrwebRecord / rrwebReplay / rrwebPlayer
+        const getRrweb = () => ({
+          record: window.rrwebRecord?.record ?? window.rrwebRecord,
+          Replayer: window.rrwebReplay?.Replayer ?? window.rrwebReplay,
+          player: window.rrwebPlayer?.default ?? window.rrwebPlayer
+        });
+
+        // 清空回放容器并销毁上一次的实例，避免多个回放器叠加
+        const clearRrHost = () => {
+          if (rrPlayer && typeof rrPlayer.$destroy === 'function') {
+            try { rrPlayer.$destroy(); } catch (e) { /* 忽略重复销毁 */ }
+          }
+          rrPlayer = null;
+          if (rrLiveReplayer) {
+            try { rrLiveReplayer.destroy(); } catch (e) { /* 忽略重复销毁 */ }
+            rrLiveReplayer = null;
+          }
+          if (rrHostRef.value) rrHostRef.value.innerHTML = '';
+        };
+
+        // 开始录制：record() 返回停止函数，事件通过 emit 回调持续产出
+        const handleRrStart = () => {
+          const { record, Replayer } = getRrweb();
+          if (typeof record !== 'function') {
+            rrState.status = 'rrweb 资源未加载完成，请检查网络后刷新页面';
+            return;
+          }
+
+          clearRrHost();
+          rrEvents.length = 0;
+          rrEventBytes = 0;
+          flushRrStats(true);
+
+          // 实时预览：liveMode + startLive，边录边看（同样可用于实时协作）
+          if (rrState.live && typeof Replayer === 'function') {
+            rrLiveReplayer = new Replayer([], {
+              liveMode: true,
+              root: rrHostRef.value,
+              showWarning: false
+            });
+            // 默认基线是 Date.now()，事件一到就应用容易卡顿，这里加 1s 缓冲
+            rrLiveReplayer.startLive(Date.now() - 1000);
+          }
+
+          rrStopFn = record({
+            emit(event) {
+              rrEvents.push(event);
+              rrEventBytes += JSON.stringify(event).length;
+              flushRrStats();
+              // 开了实时预览时，事件一到就推给 Replayer（liveMode）
+              if (rrLiveReplayer) rrLiveReplayer.addEvent(event);
+            },
+            recordCanvas: true,          // 录制 canvas 内容
+            collectFonts: true,          // 收集字体，保证回放还原度
+            maskAllInputs: true,         // 所有输入框内容自动打码
+            blockClass: 'rr-block',      // .rr-block 元素只占位、不录制
+            checkoutEveryNms: 30 * 1000  // 每 30s 做一次全量快照，便于从任意段落回放
+          });
+
+          rrState.recording = true;
+          rrState.status = rrState.live ? '录制中（实时预览已开启）…' : '录制中…';
+        };
+
+        // 结束录制
+        const handleRrStop = () => {
+          if (!rrState.recording) return;
+          rrStopFn?.();
+          rrStopFn = null;
+          flushRrStats(true);
+          rrState.recording = false;
+          rrState.status = '已结束，可播放回放或下载 JSON';
+        };
+
+        // 播放录制：用功能完整的 rrweb-player UI 回放事件流
+        const handleRrReplay = () => {
+          const { player } = getRrweb();
+          if (rrEvents.length === 0) return;
+          if (typeof player !== 'function') {
+            rrState.status = 'rrweb-player 资源未加载完成，请检查网络后刷新页面';
+            return;
+          }
+
+          const host = rrHostRef.value;
+          const width = Math.min(780, host.clientWidth || 780);
+          clearRrHost();
+          rrPlayer = new player({
+            target: host,
+            props: {
+              events: rrEvents.slice(),
+              width,
+              height: Math.round(width * 0.6),
+              autoPlay: true,
+              showController: true,
+              speedOption: [1, 2, 4, 8]
+            }
+          });
+          rrState.status = '回放中';
+        };
+
+        // 下载事件流 JSON（可持久化，之后用 Replayer / rrweb-player 离线回放）
+        const handleRrDownload = () => {
+          if (rrEvents.length === 0) return;
+          const blob = new Blob([JSON.stringify(rrEvents)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.style.display = 'none';
+          a.download = `rrweb-events-${Date.now()}.json`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        };
+
+        // 重置内容
+        const handleRrReset = () => {
+          if (rrStopFn) {
+            rrStopFn();
+            rrStopFn = null;
+          }
+          clearRrHost();
+          rrEvents.length = 0;
+          rrEventBytes = 0;
+          flushRrStats(true);
+          rrState.recording = false;
+          rrState.status = '未开始';
+        };
+
         // ---------- 画布动画，供 captureStream 采集 ----------
         let ctx = null;
         let angle = 0;
@@ -259,6 +447,13 @@
           cancelAnimationFrame(rafId);
           rafId = 0;
           revokeObjectUrl();
+
+          // rrweb 侧清理
+          if (rrStopFn) {
+            rrStopFn();
+            rrStopFn = null;
+          }
+          clearRrHost();
         });
 
         return {
@@ -272,15 +467,23 @@
           handleStop,
           handleReplay,
           handleReset,
-          handleDownload
+          handleDownload,
+          rrHostRef,
+          rrState,
+          rrSizeText,
+          handleRrStart,
+          handleRrStop,
+          handleRrReplay,
+          handleRrDownload,
+          handleRrReset
         };
       },
 
       template: `
-        <h1>屏幕录制 / 画布录制示例</h1>
+        <h1>录屏方案对比：MediaRecorder 录屏 vs rrweb 录屏</h1>
         <p class="tip">
-          基于 <code>MediaRecorder</code> + <code>getDisplayMedia</code> 实现。
-          需在 <code>https</code> 或 <code>localhost</code> 环境下运行，点击「开始录制」后选择要共享的窗口 / 标签页。
+          上半部分是 <code>MediaRecorder</code> + <code>getDisplayMedia</code> 的像素级录屏（需在 <code>https</code> 或 <code>localhost</code> 下运行，会弹出共享屏幕授权）；
+          下半部分是 <code>rrweb</code> 的 DOM 事件流录制，无需授权，产物是 JSON。两套可以同时开着录制，直接对比效果。
         </p>
 
         <div class="card">
@@ -314,6 +517,58 @@
             <button @click="handleCanvasRecord" :disabled="state.recording">录制画布</button>
             <button @click="handleReplay" :disabled="state.blobs.length === 0">播放录制</button>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>基于 rrweb 的录屏（DOM 事件流）</h2>
+          <div class="toolbar">
+            <button class="primary" @click="handleRrStart" :disabled="rrState.recording">开始录制</button>
+            <button class="danger" @click="handleRrStop" :disabled="!rrState.recording">结束录制</button>
+            <button @click="handleRrReplay" :disabled="rrState.eventCount === 0">播放录制</button>
+            <button @click="handleRrDownload" :disabled="rrState.eventCount === 0">下载 JSON</button>
+            <button @click="handleRrReset">重置内容</button>
+            <label class="switch">
+              <input type="checkbox" v-model="rrState.live" :disabled="rrState.recording" />
+              实时预览（liveMode，边录边看）
+            </label>
+          </div>
+
+          <div class="status">
+            <span class="dot" :class="{ live: rrState.recording }"></span>
+            {{ rrState.status }} —— 共 {{ rrState.eventCount }} 条事件 / {{ rrSizeText }}
+          </div>
+
+          <p v-if="rrState.eventCount === 0" class="empty">暂无事件流，点「开始录制」并操作页面后回放看看</p>
+          <!-- 回放容器：内部 DOM 完全交给 rrweb 管理，故不要在这里放 Vue 模板内容 -->
+          <div class="rr-host rr-block" ref="rrHostRef"></div>
+        </div>
+
+        <div class="card">
+          <h2>两种方案对比</h2>
+          <table class="compare">
+            <thead>
+              <tr>
+                <th style="width: 110px;">维度</th>
+                <th>MediaRecorder 录屏（像素）</th>
+                <th>rrweb 录屏（DOM 事件流）</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>采集内容</td><td>屏幕 / 窗口 / 标签页的真实画面</td><td>文档的 DOM 变更、鼠标移动、输入、滚动</td></tr>
+              <tr><td>产物</td><td>WebM 视频二进制（Blob）</td><td>JSON 事件流（可压缩，体积通常小几个量级）</td></tr>
+              <tr><td>录制范围</td><td>可任选屏幕或任意窗口，能跨应用</td><td>仅当前页面，且是整篇文档，不支持只录某块区域</td></tr>
+              <tr><td>用户授权</td><td>必须授权共享屏幕，用户会看到浏览器提示条</td><td>无需额外授权</td></tr>
+              <tr><td>隐私处理</td><td>只能靠人为遮挡，难自动打码</td><td>.rr-block / .rr-mask / maskAllInputs 自动屏蔽与打码</td></tr>
+              <tr><td>回放能力</td><td>沿视频时间轴播放、拖动、倍速</td><td>任意倍速、跳到任意时间点、鼠标轨迹、实时直播（liveMode）</td></tr>
+              <tr><td>可检索性</td><td>不可检索，只能人眼看</td><td>事件即数据，可按用户 / 时间 / 行为类型检索聚合</td></tr>
+              <tr><td>还原度</td><td>像素级 100% 还原，所见即所得</td><td>靠 DOM/CSS 重建，跨域 iframe、字体、canvas 需额外配置</td></tr>
+              <tr><td>典型场景</td><td>录课、演示、对外输出视频</td><td>用户行为分析、埋点排查、线上问题复现</td></tr>
+            </tbody>
+          </table>
+          <p class="tip" style="margin: 12px 0 0;">
+            补充：rrweb 的事件流还能用 <span class="tag">rrvideo</span> 转成视频文件，等于同时拿到「可检索的数据」和「视频」；
+            反过来视频无法变成 rrweb 事件流，所以两者通常是互补而非替代关系。
+          </p>
         </div>
       `
     }).mount('#app');
