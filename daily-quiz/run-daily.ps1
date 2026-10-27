@@ -5,7 +5,8 @@
     1) 把当天运行输出写入 logs\daily-quiz-yyyy-MM-dd.log（按天分文件，当天的多次运行追加到同一文件）
     2) 每次运行写入开始/结束标记、退出码与耗时
     3) 自动清理超过 -KeepDays 天的历史日志（默认 30 天）
-    4) 把 node 的退出码原样返回给任务计划程序（便于"失败重启"生效）
+    4) 把 node 的退出码原样返回给任务计划程序（便于"失败重启"生效）；
+       node 没给出退出码、或输出里出现"提交失败/业务失败"时，按 1 返回
 
   用法（任务计划程序的"操作"里）：
     程序或脚本 : powershell.exe
@@ -62,6 +63,15 @@ $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $output = & $NodeExe --import tsx src\fetch-exam-data.ts 2>&1
 $code = $LASTEXITCODE
 $stopwatch.Stop()
+
+# node 被强杀等异常情况下没有退出码，按失败处理
+if ($null -eq $code) { $code = 1 }
+
+# 双保险：输出里出现明确的提交失败，即使 node 返回 0 也按失败返回
+# （任务计划程序的「失败重启」只在任务结果非 0 时才生效）
+if ($code -eq 0 -and $output) {
+  if ($output -match '提交失败：|业务失败（code=') { $code = 1 }
+}
 
 if ($output) {
   # 同时写日志文件与当前控制台（Add-Content 与头部写入方式保持一致）

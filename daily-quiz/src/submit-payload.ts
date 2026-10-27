@@ -442,6 +442,7 @@ export interface SubmitResponseResult {
   resultText: string | null
   /** 解密后的 result 对象 */
   result: Record<string, unknown> | null
+  /** 页面旧逻辑：result.status === 'already_submitted'（实测后端不走这条路，判重请看 isAlreadySubmittedResult） */
   alreadySubmitted: boolean
   isPassed: boolean | null
 }
@@ -539,6 +540,18 @@ export async function submitExam(options: SubmitOptions): Promise<SubmitResponse
   }
 }
 
+/**
+ * 服务端表示"已参加过 / 已提交过"：属幂等正常结果（不会重复计分），不应视为失败
+ *   实测响应：HTTP 200 + code=400 + message「您已经参加过该考试」（result 为 null）
+ *   页面旧逻辑里的 result.status = 'already_submitted' 也一并兼容
+ */
+export function isAlreadySubmittedResult(result: SubmitResponseResult): boolean {
+  if (result.alreadySubmitted) return true
+  const message = (result.message ?? '').trim()
+  if (!message) return false
+  return /已经参[加与]|已参[加与]|已提交过|重复提交/.test(message)
+}
+
 /** 打印提交结果（原始响应 + 业务字段 + 判定） */
 export function printSubmitResponse(result: SubmitResponseResult): void {
   const statusLine = `HTTP ${result.status} ${result.statusText}   ${result.elapsedMs}ms`
@@ -560,11 +573,11 @@ export function printSubmitResponse(result: SubmitResponseResult): void {
   console.log(`\n${subheading('判定：')}`)
   if (result.errors) {
     console.log(`  ${fail(`接口返回 errors，提交失败：${JSON.stringify(result.errors)}`)}`)
+  } else if (isAlreadySubmittedResult(result)) {
+    console.log(`  ${warn('已参加过该考试（不会重复计分），按成功处理')}`)
+    if (result.isPassed != null) console.log(`  ${label('历史结果 isPassed')} = ${result.isPassed ? ok('true') : fail('false')}`)
   } else if (result.code != null && result.code !== 200) {
     console.log(`  ${fail(`业务失败（code=${result.code}）：${result.message ?? ''}`)}`)
-  } else if (result.alreadySubmitted) {
-    console.log(`  ${warn('已参与过该考试（result.status = already_submitted）')}`)
-    if (result.isPassed != null) console.log(`  ${label('历史结果 isPassed')} = ${result.isPassed ? ok('true') : fail('false')}`)
   } else if (result.ok) {
     console.log(`  ${ok('提交成功')}`)
     if (result.isPassed != null) console.log(`  ${label('isPassed')} = ${result.isPassed ? ok('true') : fail('false')}`)

@@ -24,8 +24,10 @@
  *      工号取 config.js 的 QUIZ_JOB_NUMBERS（支持数组），
  *      也可用 --code / 环境变量 QUIZ_CODE 临时覆盖；都没有才提示终端交互输入
  *   5) 按页面逻辑真实提交：POST /api/StudentExam/SubmitByHtml，body 就是密文；
- *      响应按页面拦截器处理：解密 message / result，识别 already_submitted、isPassed 等
+ *      响应按页面拦截器处理：解密 message / result，识别 isPassed 等；
+ *      重复提交（code=400「您已经参加过该考试」）按成功处理，网络错误/超时/5xx/429 进程内重试
  *      多份试卷/多个工号时串行逐个提交，最后打印成功/失败汇总
+ *      任一次提交失败 → 进程退出码 1（任务计划程序据此触发"失败重启"）
  *
  * 用法：
  *   pnpm start                                       默认 TJ2 厂区 + QUIZ_SCOPE 配置的范围，构建并真实提交
@@ -52,6 +54,7 @@
  *   REQUEST_TIMEOUT   单次请求超时（毫秒），默认 30000
  *   MAX_PRINT_CHARS   终端里原始响应体最大打印字符数，默认 4000
  *   SUBMIT_TIMEOUT    提交接口超时（毫秒），默认 15000
+ *   SUBMIT_RETRIES    提交失败的进程内重试次数（0 = 不重试），默认 2；只对网络错误 / 5xx / 429 重试
  *   QUIZ_CODE         工号（明文），等价于 --code
  */
 import { writeFile } from 'node:fs/promises'
@@ -65,6 +68,7 @@ import {
   prettyBody,
   questionTypeName,
   stripHtmlOneLine,
+  toNonNegativeInt,
   toPositiveInt,
   todayString,
 } from './exam-utils.js'
@@ -80,6 +84,7 @@ import {
 import { fail, heading, label, ok, subheading, warn } from './terminal-style.js'
 import {
   buildSubmitPayload,
+  isAlreadySubmittedResult,
   loadEnvConfig,
   printConfig,
   printSubmitPayload,
@@ -99,6 +104,12 @@ const DEFAULT_LIMIT = 3
 const DEFAULT_CONFIG_PATH = join(process.cwd(), 'config.js')
 /** 提交接口超时（页面 axios 用的是 3000ms，这里默认放宽以免网络抖动被误判为失败） */
 const DEFAULT_SUBMIT_TIMEOUT = toPositiveInt(process.env.SUBMIT_TIMEOUT, 15_000)
+/** 提交失败的进程内重试次数（0 合法，表示不重试） */
+const SUBMIT_RETRIES = toNonNegativeInt(process.env.SUBMIT_RETRIES, 2)
+/** 第 n 次重试前的等待时间（毫秒）；次数超出时取最后一档 */
+const SUBMIT_RETRY_DELAYS = [500, 1_000, 2_000]
+/** 提交失败时的退出码：非 0 才能让任务计划程序的「失败重启」生效 */
+const EXIT_SUBMIT_FAILED = 1
 /** 终端里原始响应体的最大打印字符数 */
 const MAX_PRINT_CHARS = toPositiveInt(process.env.MAX_PRINT_CHARS, 4000)
 
@@ -462,12 +473,17 @@ async function loadEnvConfigSafe(options: CliOptions): Promise<EnvConfig> {
   }
 }
 
-/** 第四步 + 第五步：按答题范围，逐份试卷 × 逐工号构建提交体并提交 */
-async function printSubmitStep(options: CliOptions, env: EnvConfig, scope: ScopeConfig, scopeExams: ExamItem[]): Promise<void> {
+/** 第四步 + 第五步：按答题范围，逐份试卷 × 逐工号构建提交体并提交；返回失败明细供退出码判定 */
+async function printSubmitStep(
+  options: CliOptions,
+  env: EnvConfig,
+  scope: ScopeConfig,
+  scopeExams: ExamItem[],
+): Promise<{ attempted: number; failures: string[] }> {
   if (scopeExams.length === 0) {
     console.log(heading('4/5 提交请求体（跳过）'))
     console.log(warn('答题范围内没有命中试卷，跳过提交体构建与提交'))
-    return
+    return { attempted: 0, failures: [] } // 当天还没出题属正常情况，不算失败
   }
 
   console.log(`\n${subheading('配置（用于构建提交体，来自 config.js）：')}`)
@@ -493,7 +509,8 @@ async function printSubmitStep(options: CliOptions, env: EnvConfig, scope: Scope
   // 第五步：按源码逻辑真实提交（POST /api/StudentExam/SubmitByHtml），串行逐个提交
   const { successCount, failures } = await submitAll(options, env, prepared, compact)
 
-  if (compact && !options.dryRun) {
+  // 多条任务或有失败时必须打印汇总（单条成功保持原来的简洁输出）
+  if (!options.dryRun && (compact || failures.length > 0)) {
     console.log(heading('提交汇总'))
     console.log(`  ${label('提交次数')} : ${prepared.length}`)
     console.log(
@@ -501,10 +518,13 @@ async function printSubmitStep(options: CliOptions, env: EnvConfig, scope: Scope
     )
     if (failures.length > 0) {
       for (const item of failures) console.log(`  ${fail(`失败：${item}`)}`)
+      console.log(`  ${fail(`本次有 ${failures.length} 次提交失败，退出码将返回 ${EXIT_SUBMIT_FAILED}（任务计划程序会据此重试）`)}`)
     } else {
       console.log(`  ${ok('全部提交完成')}`)
     }
   }
+
+  return { attempted: options.dryRun ? 0 : prepared.length, failures: options.dryRun ? [] : failures }
 }
 
 interface PreparedItem {
@@ -535,7 +555,81 @@ function preparePayloads(env: EnvConfig, scopeExams: ExamItem[], targets: JobTar
   return prepared
 }
 
-/** 第五步：串行逐个提交，返回成功数与失败明细 */
+/** 单次提交的判定结果 */
+interface SubmitAttempt {
+  ok: boolean
+  /** 是否值得重试（网络层错误 / 超时 / HTTP 5xx / 429） */
+  retryable: boolean
+  /** 失败原因（成功时为空串） */
+  detail: string
+}
+
+/** 取完整错误链：undici 把真实原因藏在 error.cause / AggregateError.errors 里 */
+function describeError(error: unknown, depth = 0): string {
+  if (!error || depth > 3) return ''
+  if (!(error instanceof Error)) return String(error)
+  const parts = [error.message]
+  const cause = (error as { cause?: unknown }).cause
+  if (cause) parts.push(describeError(cause, depth + 1))
+  const errors = (error as { errors?: unknown[] }).errors
+  if (Array.isArray(errors) && errors[0]) parts.push(describeError(errors[0], depth + 1))
+  return parts.filter(Boolean).join(' ← ')
+}
+
+/** 网络层 / 超时类错误才重试；业务失败重试没有意义 */
+function isRetryableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  if (error.name === 'TimeoutError') return true // AbortSignal.timeout
+  if (error.message === 'fetch failed') return true // undici 网络层（真实原因在 cause 里）
+  const code = (error as { cause?: { code?: string } }).cause?.code ?? ''
+  return /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH|ENETUNREACH|UND_ERR_)/.test(
+    code,
+  )
+}
+
+/** HTTP 层可重试状态：限流与 5xx */
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * 提交一次并判定：
+ *   成功 = HTTP ok + 无 errors + code 为 200（或无 code）；
+ *   重复提交（code=400 +「您已经参加过该考试」/ result.status = already_submitted）同样按成功处理
+ */
+async function submitOnce(
+  options: CliOptions,
+  env: EnvConfig,
+  payload: SubmitPayload,
+  title: string,
+): Promise<SubmitAttempt | null> {
+  try {
+    const response = await submitExam({
+      env,
+      payload,
+      bodyMode: options.bodyMode,
+      timeout: options.submitTimeout,
+      dryRun: options.dryRun,
+      title,
+    })
+    if (!response) return null // --dry-run 未发送
+    printSubmitResponse(response)
+    const businessOk = response.ok && !response.errors && (response.code == null || response.code === 200)
+    // 已参加过该考试属幂等正常结果（不会重复计分），不能算失败，更不能触发重试
+    const alreadyDone = response.ok && isAlreadySubmittedResult(response)
+    if (businessOk || alreadyDone) return { ok: true, retryable: false, detail: '' }
+    const detail = `HTTP ${response.status} code=${response.code ?? '-'} ${response.message ?? ''}`.trim()
+    return { ok: false, retryable: isRetryableStatus(response.status), detail }
+  } catch (error) {
+    return { ok: false, retryable: isRetryableError(error), detail: describeError(error) }
+  }
+}
+
+/** 第五步：串行逐个提交（同一份密文 body 可安全重放，服务端会返回 already_submitted） */
 async function submitAll(
   options: CliOptions,
   env: EnvConfig,
@@ -548,25 +642,34 @@ async function submitAll(
   for (const [index, { exam, target, payload }] of prepared.entries()) {
     const who = target.jobNumber ?? '(已编码)'
     const examLabel = `${exam.questions?.[0]?.category ?? '-'}｜id=${exam.id}`
-    try {
-      const response = await submitExam({
-        env,
-        payload,
-        bodyMode: options.bodyMode,
-        timeout: options.submitTimeout,
-        dryRun: options.dryRun,
-        title: compact
-          ? `5/5 提交答题 · ${examLabel} · 工号 ${who}（${index + 1}/${prepared.length}）`
-          : '5/5 提交答题（真实调用 /api/StudentExam/SubmitByHtml）',
-      })
-      if (!response) continue // --dry-run 未发送
-      printSubmitResponse(response)
-      if (response.code == null || response.code === 200) successCount++
-      else failures.push(`${examLabel} · ${who}: code=${response.code} ${response.message ?? ''}`.trim())
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      console.log(`\n${fail(`${examLabel} · 工号 ${who} 提交失败：${message}`)}`)
-      failures.push(`${examLabel} · ${who}: ${message}`)
+    const title = compact
+      ? `5/5 提交答题 · ${examLabel} · 工号 ${who}（${index + 1}/${prepared.length}）`
+      : '5/5 提交答题（真实调用 /api/StudentExam/SubmitByHtml）'
+
+    let lastDetail = ''
+    for (let attempt = 0; attempt <= SUBMIT_RETRIES; attempt++) {
+      if (attempt > 0) {
+        const wait = SUBMIT_RETRY_DELAYS[Math.min(attempt - 1, SUBMIT_RETRY_DELAYS.length - 1)] ?? 500
+        console.log(
+          `\n${warn(`${examLabel} · 工号 ${who} 提交失败（${lastDetail}），${wait}ms 后第 ${attempt}/${SUBMIT_RETRIES} 次重试`)}`,
+        )
+        await delay(wait)
+      }
+
+      const result = await submitOnce(options, env, payload, attempt === 0 ? title : `${title}（重试 ${attempt}/${SUBMIT_RETRIES}）`)
+      if (!result) break // --dry-run：未发送，不计失败
+
+      if (result.ok) {
+        successCount++
+        break
+      }
+
+      lastDetail = result.detail
+      if (result.retryable && attempt < SUBMIT_RETRIES) continue
+
+      console.log(`\n${fail(`${examLabel} · 工号 ${who} 提交失败：${lastDetail}`)}`)
+      failures.push(`${examLabel} · ${who}: ${lastDetail}`)
+      break
     }
   }
 
@@ -729,6 +832,8 @@ async function main(): Promise<void> {
     console.log(`\n${ok(`数据文件响应体已保存到：${options.out}（${dataResult.bytes} 字节）`)}`)
   }
 
+  let submitFailures: string[] = []
+
   if (options.json) {
     const submitSummary = options.skipPayload ? null : await buildSubmitSummary(options, env, scope, scopeExams)
     printJsonReport({ options, scope, current, pointer, dataResult, data, matchedExams, matchedItems, scopeExams, submitSummary })
@@ -745,14 +850,17 @@ async function main(): Promise<void> {
     if (options.skipPayload) {
       console.log(`\n${warn('--skip-payload 已跳过第四、五步（提交请求体构建与提交）')}`)
     } else {
-      await printSubmitStep(options, env, scope, scopeExams)
+      const submitResult = await printSubmitStep(options, env, scope, scopeExams)
+      submitFailures = submitResult.failures
     }
   }
 
+  // 提交失败必须体现在退出码上，否则任务计划程序的「失败重启」不会触发（当天没出题不算失败）
   if (!pointer.ok || !dataResult.ok) process.exitCode = 1
+  else if (submitFailures.length > 0) process.exitCode = EXIT_SUBMIT_FAILED
 }
 
 main().catch((error: unknown) => {
-  console.error('调用接口失败：', error instanceof Error ? error.message : error)
+  console.error('调用接口失败：', describeError(error))
   process.exitCode = 1
 })

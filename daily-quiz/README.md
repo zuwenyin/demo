@@ -11,7 +11,7 @@
 2/5 拉数据文件        当日全部试卷；按厂区过滤后打印列表前 N 条
 3/5 题目详情          按配置的「答题范围」逐份渲染题目（题干/选项/正确答案）
 4/5 构建提交体        每份试卷 × 每个工号各生成一份 SM2 密文，并本地解密自检
-5/5 提交              真实调用提交接口，解析响应（首次提交 / 已参与过）
+5/5 提交              真实调用提交接口，解析响应（首次提交成功 / 重复提交返回"已参加过"也算成功）
 ```
 
 ## 2. 环境要求
@@ -88,8 +88,20 @@ pnpm run simulate              # 答题模拟：演示"选项随机"与判定规
 
 运行结束看最后几行即可：
 
-- 出现 `提交成功` 或 `已参与过该考试（result.status = already_submitted）` → 本次正常
+- 出现 `提交成功` 或 `已参加过该考试（不会重复计分），按成功处理` → 本次正常（服务端对重复提交返回 `code=400` + 该提示，退出码仍是 0）
 - 出现 `业务失败（code=...）` 或 `提交失败：...` → 需要处理（见第 10 节）
+
+退出码约定：`0` 正常（含"当天还没出题"）、`1` 拉数据失败或提交失败。提交遇到网络类错误时会先在进程内重试 2 次（间隔 0.5s/1s/2s），仍失败才返回 `1`。
+
+可选环境变量：
+
+| 变量 | 默认值 | 作用 |
+| --- | --- | --- |
+| `SUBMIT_RETRIES` | `2` | 提交失败的进程内重试次数，`0` = 不重试（只对网络错误 / 超时 / 5xx / 429 重试） |
+| `SUBMIT_TIMEOUT` | `15000` | 提交接口超时（毫秒） |
+| `REQUEST_TIMEOUT` | `30000` | 单次 GET（指针 / 数据文件）超时（毫秒） |
+| `UPSTREAM_ORIGIN` | `https://ehs30sfun-cdn.asymchem.com.cn` | 数据源站点 |
+| `MAX_PRINT_CHARS` | `4000` | 终端里原始响应体最大打印字符数 |
 
 ## 6. 配置定时任务（每个工作日自动运行）
 
@@ -117,6 +129,8 @@ pnpm run simulate              # 答题模拟：演示"选项随机"与判定规
    - 取消「如果任务没有计划再次运行，则在此之后删除该任务」
 7. **条件**：勾选「只有在以下网络连接可用时才启动」（下拉选"任何连接"）；笔记本建议**取消**「只有在计算机使用交流电源时才启动」
 8. 确定保存
+
+> 「如果任务失败」这一项只在**任务结果非 0** 时生效。脚本的退出码已经把"提交失败"算进去了（拉数据失败、提交失败都返回 `1`，只有"当天还没出题"才返回 `0`），所以这项设置才会真正触发重试。
 
 ### 6.2 方式二：PowerShell 一键创建（推荐，便于换机重建）
 
@@ -179,7 +193,7 @@ Get-Content "D:\testCode\demo\daily-quiz\logs\daily-quiz-$(Get-Date -Format 'yyy
 | --- | --- | --- |
 | `LastTaskResult` | `0x0` | `0x1` 说明脚本以非 0 退出，看日志尾部找原因；`0x80070002` 多为路径填错 |
 | 日志文件 | 当天 `daily-quiz-YYYY-MM-DD.log` 体积在增长 | 文件不存在：确认"起始于"目录正确、`logs` 目录可写 |
-| 日志结尾 | `退出码 0`，且有 `提交成功`/`已参与过该考试` | `fetch failed` 多为网络抖动，等任务自动重试或手动再跑 |
+| 日志结尾 | `退出码 0`，且有 `提交成功`/`已参加过该考试…按成功处理` | `fetch failed` 多为网络抖动，等任务自动重试或手动再跑 |
 | 系统侧 | 事件查看器 → 应用程序和服务日志 → Microsoft → Windows → TaskScheduler → Operational | 该日志默认关闭，需先执行：`wevtutil sl Microsoft-Windows-TaskScheduler/Operational /e:true` |
 
 **第 4 步：看每天的汇总（可选）**
@@ -187,6 +201,18 @@ Get-Content "D:\testCode\demo\daily-quiz\logs\daily-quiz-$(Get-Date -Format 'yyy
 ```powershell
 Select-String -Path D:\testCode\demo\daily-quiz\logs\*.log -Pattern "运行结束" -Encoding UTF8 | Select-Object -Last 10
 ```
+
+**第 5 步：确认失败会返回非 0（可选，30 秒）**
+
+```powershell
+# 把数据源指向不可达地址，制造一次拉取失败；会往当天日志追加一条失败记录（自测正常现象）
+$env:UPSTREAM_ORIGIN = 'https://127.0.0.1:9'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\run-daily.ps1
+"退出码=$LASTEXITCODE"        # 期望 1，日志结尾也是「退出码 1」
+Remove-Item Env:UPSTREAM_ORIGIN
+```
+
+只有返回非 0，任务计划程序的「如果任务失败，按以下频率重新启动」才会生效。
 
 ## 8. 日志与巡检
 
@@ -215,18 +241,29 @@ Unregister-ScheduledTask -TaskName DailyQuiz -Confirm:$false
 Start-ScheduledTask -TaskName DailyQuiz
 ```
 
-改时间/范围：时间在任务「触发器」里改；答题范围改 `config.js` 的 `QUIZ_SCOPE`（脚本每次运行都会重新读取配置，改完立即生效，不需要重装任务）。
+```powershell
+# 改「失败后重启」与超时上限（需管理员；只改设置，不动触发器与操作）
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable `
+  -RestartCount 5 -RestartInterval (New-TimeSpan -Minutes 30) `
+  -ExecutionTimeLimit (New-TimeSpan -Minutes 15) `
+  -MultipleInstances IgnoreNew -RunOnlyIfNetworkAvailable
+Set-ScheduledTask -TaskName DailyQuiz -Settings $s
+```
+
+改时间/范围：时间在任务「触发器」里改；答题范围改 `config.js` 的 `QUIZ_SCOPE`（脚本每次运行都会重新读取配置，改完立即生效，不需要重装任务）。改脚本/改代码同样不需要重建任务——任务的「操作」只是拉起 `run-daily.ps1`，每次运行都会重新读文件。
 
 ## 10. 常见问题
 
 | 问题 | 说明 |
 | --- | --- |
-| 会不会重复答题？ | 不会。同一工号 + 同一试卷再次提交，服务端返回 `already_submitted`（"您已经参加过该考试"），不会重复计分。 |
-| 忘记运行会漏答吗？ | 任务勾了"错过则尽快启动"，开机/联网后会补跑；重试窗口是失败后每 30 分钟一次、共 5 次。 |
+| 会不会重复答题？ | 不会。同一工号 + 同一试卷再次提交，服务端返回 `code=400` + "您已经参加过该考试"，不会重复计分；脚本把它当成功处理（退出码 0），也不会触发任务重试。 |
+| 忘记运行会漏答吗？ | 任务勾了"错过则尽快启动"，开机/联网后会补跑。失败重试窗口由任务的「如果任务失败…重新启动」决定（README 建议 5 次 / 30 分钟，本机实测是 3 次 / 10 分钟；用 `schtasks /Query /TN DailyQuiz /V /FO LIST` 看实际值），**且只有退出码非 0 才会重试**。 |
 | 想让多个工号都提交？ | 在 `QUIZ_JOB_NUMBERS` 里配数组，脚本会对每个工号各提交一次。 |
 | 只想答某几个类别？ | 设 `QUIZ_SCOPE: "custom"` 并在 `QUIZ_CATEGORIES` 里列出类别名。 |
 | 当天还没出题怎么办？ | 第 3 步会提示"命中 0 份"并跳过提交，退出码仍为 0（不算失败），不影响下一次。 |
 | 任务结果一直是 1？ | 打开当天日志看结尾报错：`fetch failed` 是网络问题；`读不到配置文件` 检查"起始于"目录；`找不到 node` 说明运行环境 PATH 不同。 |
+| 任务结果是 0，但日志里有"提交失败"？ | 老版本的漏洞：提交失败只写日志、退出码仍是 0，任务计划程序不会重试。现已修复（提交失败 → 退出码 1，且先做进程内重试）；看到这类日志说明当时的版本还没修。 |
+| 提交偶发 `fetch failed` 怎么办？ | 进程内先重试 2 次（0.5s/1s/2s），仍失败才返回 1，由任务计划程序按 30 分钟重试；想调次数用环境变量 `SUBMIT_RETRIES`（`0` = 不重试）。日志里的错误链（如 `fetch failed ← ECONNRESET`）能直接看出根因。 |
 | 日志中文乱码？ | 用 `-Encoding UTF8` 读取，或 VS Code 打开；文件本身是 UTF-8，没有损坏。 |
 | 怎么确认它真的跑过？ | 看 `LastRunTime` 是否更新 + 当天日志里的"运行开始/运行结束"标记。 |
 

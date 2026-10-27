@@ -1,4 +1,9 @@
 Start-ScheduledTask -TaskName DailyQuiz                      # 立即手动跑一次
-Get-ScheduledTaskInfo -TaskName DailyQuiz                    # 上次运行时间 / 结果码
+Get-ScheduledTaskInfo -TaskName DailyQuiz                    # 上次运行时间 / 结果码（0 成功，非 0 才会触发失败重启）
 schtasks /Query /TN DailyQuiz /V /FO LIST                    # 命令行看全部配置
 Unregister-ScheduledTask -TaskName DailyQuiz -Confirm:$false # 删除任务
+
+(Get-ScheduledTask -TaskName DailyQuiz).Settings | Format-List RestartCount,RestartInterval,ExecutionTimeLimit,MultipleInstances  # 看失败重启 / 超时上限
+# 改失败重启 5 次 / 每 30 分钟 + 超时上限 15 分钟（需管理员；只改设置，不动触发器和操作）
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 5 -RestartInterval (New-TimeSpan -Minutes 30) -ExecutionTimeLimit (New-TimeSpan -Minutes 15) -MultipleInstances IgnoreNew -RunOnlyIfNetworkAvailable
+Set-ScheduledTask -TaskName DailyQuiz -Settings $s

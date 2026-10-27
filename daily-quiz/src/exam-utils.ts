@@ -138,3 +138,10 @@ export function toPositiveInt(value: string | undefined, fallback: number): numb
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
 }
+
+/** 解析非负整数参数：0 合法（用于「关闭重试」这类开关），非法（NaN / <0 / 空串）时回退默认值 */
+export function toNonNegativeInt(value: string | undefined, fallback: number): number {
+  if (value === undefined || String(value).trim() === '') return fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback
+}
