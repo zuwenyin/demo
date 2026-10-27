@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logger test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Microsoft YaHei", sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 16px;
+      color: #303133;
+    }
+    h1 { font-size: 20px; }
+    h3 { font-size: 15px; margin-bottom: 8px; }
+    .tip { color: #909399; font-size: 13px; line-height: 1.8; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
+    button {
+      padding: 6px 14px;
+      border: 1px solid #dcdfe6;
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button:hover { border-color: #409eff; color: #409eff; }
+    code { background: #f5f7fa; padding: 1px 5px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1>Logger 日志样式预览</h1>
+  <p class="tip">
+    按 <code>F12</code> 打开控制台，点击按钮查看对应样式的输出。<br>
+    注意本页通过 ESM 加载 tsc 编译产物 <code>index.js</code>，需先执行根目录的 <code>pnpm dev:effect</code> 或
+    <code>npx tsc -p ../../tsconfig.json</code> 生成 <code>index.js</code>。
+  </p>
+
+  <h3>基础级别</h3>
+  <div class="row">
+    <button onclick="demo.trace()">trace</button>
+    <button onclick="demo.debug()">debug</button>
+    <button onclick="demo.log()">log 普通</button>
+    <button onclick="demo.info()">info 信息</button>
+    <button onclick="demo.success()">success 成功</button>
+    <button onclick="demo.warn()">warn 警告</button>
+    <button onclick="demo.error()">error 错误</button>
+  </div>
+
+  <h3>进阶能力</h3>
+  <div class="row">
+    <button onclick="demo.object()">打印对象</button>
+    <button onclick="demo.group()">分组 group</button>
+    <button onclick="demo.table()">表格 table</button>
+    <button onclick="demo.timer()">计时 time</button>
+    <button onclick="demo.count()">计数 count</button>
+    <button onclick="demo.stack()">调用栈</button>
+    <button onclick="demo.prefix()">带前缀实例</button>
+    <button onclick="demo.timestamp()">带时间戳</button>
+    <button onclick="demo.levelFilter()">级别过滤</button>
+    <button onclick="demo.clear()">清空控制台</button>
+  </div>
+
+  <!-- 引入后自动挂载全局 Logger / log，非模块脚本里也能直接用 -->
+  <script src="./index.js" type="module"></script>
+  <script type="module">
+    // 同一个页面不同模块各建一个实例，控制台里一眼区分来源
+    import { createLogger } from './index.js'
+
+    const orderLog = createLogger('Order')
+    const user = { id: 7, name: '张三', vip: true }
+    const list = [
+      { name: '苹果', price: 5.5, stock: 20 },
+      { name: '香蕉', price: 3.2, stock: 0 },
+      { name: '橙子', price: 4.8, stock: 12 }
+    ]
+
+    window.demo = {
+      trace: () => log.trace('进入支付流程'),
+      debug: () => log.debug('当前视口宽度', window.innerWidth),
+      log: () => log.log('这是一条普通日志'),
+      info: () => log.info('数据加载完成，共 ' + list.length + ' 条'),
+      success: () => log.success('订单提交成功', { orderId: 'A20231014001' }),
+      warn: () => log.warn('接口响应超时，已降级走缓存'),
+      error: () => log.error('请求失败', { url: '/api/order', status: 500 }),
+
+      object: () => {
+        log.info('用户信息', user)
+        log.dir(user)
+      },
+      group: () => {
+        log.group('订单详情（点击展开）', true, 'info')
+        log.log('商品：苹果 x 2')
+        log.log('金额：11.00 元')
+        log.success('状态：已支付')
+        log.groupEnd()
+      },
+      table: () => log.table(list),
+      timer: () => {
+        const end = log.time('模拟请求')
+        setTimeout(end, 320)
+      },
+      count: () => log.count('按钮点击'),
+      stack: () => inner(),
+      prefix: () => {
+        orderLog.info('这条来自 Order 模块')
+        orderLog.error('库存不足')
+      },
+      timestamp: () => {
+        orderLog.configure({ timestamp: true }).info('这条带时间戳')
+        orderLog.configure({ timestamp: false })
+      },
+      levelFilter: () => {
+        // 设为 warn 后，低于 warn 的级别全部不再输出
+        orderLog.setLevel('warn')
+        orderLog.info('这条 info 不会出现')
+        orderLog.warn('这条 warn 会出现')
+        setTimeout(() => {
+          orderLog.setLevel('trace')
+          orderLog.info('级别已恢复，info 重新可见')
+        }, 3000)
+      },
+      clear: () => log.clear()
+    }
+
+    // 验证调用栈会跳过工具内部帧
+    function inner() {
+      log.stack('查看调用栈')
+    }
+  </script>
+</body>
+</html>

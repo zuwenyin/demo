@@ -1,0 +1,22 @@
+{
+  "name": "@vue3-learn/logger",
+  "version": "1.0.0",
+  "description": "控制台彩色日志工具",
+  "main": "index.js",
+  "types": "index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "default": "./index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p ../../tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "logger",
+    "console"
+  ],
+  "license": "ISC",
+  "type": "module"
+}

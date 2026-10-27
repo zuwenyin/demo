@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Effect test</title>
+  <!--
+    浏览器原生 ESM 无法解析裸包名（bare specifier），tsc 也不会改写 import 路径，
+    所以这里用 import map 把 "@vue3-learn/logger" 映射到 logger 包的编译产物。
+    注意：import map 必须写在任何 <script type="module"> 之前。
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "@vue3-learn/logger": "../logger/index.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <script src="./effect.js" type="module"></script>
+</body>
+</html>

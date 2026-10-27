@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proxy 的 get / set 拦截演示</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      display: flex;
+      justify-content: center;
+      padding: 2rem;
+      margin: 0;
+    }
+
+    .card {
+      max-width: 700px;
+      width: 100%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #1e293b;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2::before {
+      content: "⚡";
+      font-size: 1.6rem;
+    }
+
+    .output {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1.25rem 1.5rem;
+      border-radius: 12px;
+      font-family: 'Fira Code', 'SF Mono', Consolas, monospace;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-top: 1.25rem;
+      border-left: 4px solid #3b82f6;
+      transition: border-color 0.2s;
+    }
+
+    .output:empty {
+      display: none;
+    }
+
+    .output::before {
+      content: "📋 控制台输出";
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 0.6rem;
+      font-family: system-ui, sans-serif;
+      font-weight: 500;
+    }
+
+    .note {
+      background: #f1f5f9;
+      border-left: 4px solid #64748b;
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      color: #334155;
+      margin: 1rem 0;
+    }
+
+    code {
+      background: #e2e8f0;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.9em;
+      color: #0f172a;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h2>Proxy 拦截器：get / set 演示</h2>
+
+    <p class="note">
+      打开控制台查看完整日志。下面的示例用 <code>Proxy</code> 拦截了对 <code>user</code>
+      对象的读取与赋值，实现 <strong>默认值填充</strong> 与 <strong>字段校验</strong>。
+    </p>
+
+    <div class="output" id="output"></div>
+  </div>
+
+  <script>
+    const data = { ok: true, text: "Hello, vue3!" }
+    const obj = new Proxy(data, {
+      get (target, key) {
+        console.log(`【get】读取属性: ${key}`)
+        // 用 Reflect 保证 getter 里的 this / receiver 语义正确
+        return Reflect.get(target, key)
+      },
+      set (target, key, value) {
+        console.log(`【set】设置属性: ${key}=>${value}`)
+        return Reflect.set(target, key, value)
+      }
+    })
+    obj.ok
+
+    setTimeout(() => {
+      obj.text = "Hello, vue3!"
+    }, 1000)
+  </script>
+</body>
+
+</html>

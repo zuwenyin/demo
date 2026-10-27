@@ -1,0 +1,50 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    /* ---------- 语言与运行环境 ---------- */
+    // 目标是浏览器（packages/reactivity 下有 index.html 直接加载编译产物）
+    "target": "esnext",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    // 仓库为 ESM（根 package.json 声明 "type": "module"），
+    // nodenext 会强制相对导入写全 .js 后缀，保证产物能被浏览器原生 ESM 直接加载
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "moduleDetection": "force",
+    // Vue3 源码学习项目：JSX 交给打包器处理，用 preserve 保留原始写法
+    "jsx": "preserve",
+    // 暂不引入任何 @types/*（当前未安装 @types/node），如需 Node API 再手动加
+    "types": [],
+
+    /* ---------- 输出 ---------- */
+    // 产物默认就地产出（effect.ts -> effect.js），index.html 可直接引用
+    "rootDir": "./packages",
+    // "outDir": "./dist",   // 注意：开启后产物路径变化，需同步修改 index.html 的 <script src>
+    "sourceMap": true,
+    "declaration": false,
+    "declarationMap": false,
+    "removeComments": false,
+    "newLine": "lf",
+
+    /* ---------- 模块与语法约束 ---------- */
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noUncheckedSideEffectImports": true,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    /* ---------- 类型检查 ---------- */
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+    // 学习阶段建议先不开，等熟悉后再开启：
+    // "noUncheckedIndexedAccess": true,
+    // "exactOptionalPropertyTypes": true,
+  },
+  "include": ["packages/**/*.ts"],
+  "exclude": ["node_modules", "**/dist", "**/*.js"]
+}
