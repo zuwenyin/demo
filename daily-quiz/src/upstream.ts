@@ -4,7 +4,8 @@
  * 三个脚本（fetch-exam-data / simulate-answer / build-submit-payload）共用这里的常量与请求逻辑，
  * 接口地址、请求头或超时策略有变动时只需改这一处。
  */
-import { toPositiveInt } from './exam-utils.js'
+import { toNonNegativeInt, toPositiveInt } from './exam-utils.js'
+import { warn } from './terminal-style.js'
 import type { ExamItem } from './exam-types.js'
 
 /** 上游数据站点（CDN） */
@@ -17,6 +18,10 @@ export const POINTER_PATH = `${DATA_DIR}/exam_data_latest.json`
 export const REQUEST_TIMEOUT = toPositiveInt(process.env.REQUEST_TIMEOUT, 30_000)
 /** t 参数的版本窗口，与前端一致：5 分钟 */
 export const VERSION_WINDOW_MS = 5 * 60 * 1000
+/** GET 失败的进程内重试次数（0 = 不重试）；只对网络错误 / 超时 / 5xx / 429 重试 */
+export const UPSTREAM_RETRIES = toNonNegativeInt(process.env.UPSTREAM_RETRIES, 3)
+/** 第 n 次重试前的等待时间（毫秒）；次数超出时取最后一档 */
+const UPSTREAM_RETRY_DELAYS = [500, 1_000, 2_000]
 
 /** 请求上游使用的 UA（默认与钉钉内嵌浏览器一致），数据接口与提交接口共用 */
 export const UPSTREAM_USER_AGENT =
@@ -63,34 +68,102 @@ export interface UpstreamResponse {
   body: string
 }
 
-/** GET 上游并返回完整响应；非 2xx 不抛错，由调用方判断（与列表页 axios 行为一致） */
-export async function fetchUpstream(input: string, t?: string): Promise<UpstreamResponse> {
+/** 取完整错误链：undici 把真实原因藏在 error.cause / AggregateError.errors 里 */
+export function describeError(error: unknown, depth = 0): string {
+  if (!error || depth > 3) return ''
+  if (!(error instanceof Error)) return String(error)
+  const parts = [error.message]
+  const cause = (error as { cause?: unknown }).cause
+  if (cause) parts.push(describeError(cause, depth + 1))
+  const errors = (error as { errors?: unknown[] }).errors
+  if (Array.isArray(errors) && errors[0]) parts.push(describeError(errors[0], depth + 1))
+  return parts.filter(Boolean).join(' ← ')
+}
+
+/** 网络层 / 超时类错误才重试；业务失败重试没有意义 */
+export function isRetryableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  if (error.name === 'TimeoutError') return true // AbortSignal.timeout
+  if (error.message === 'fetch failed') return true // undici 网络层（真实原因在 cause 里）
+  const code = (error as { cause?: { code?: string } }).cause?.code ?? ''
+  return /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH|ENETUNREACH|UND_ERR_)/.test(
+    code,
+  )
+}
+
+/** HTTP 层可重试状态：限流与 5xx */
+export function isRetryableStatus(status: number): boolean {
+  return status === 429 || status >= 500
+}
+
+/** 等待指定毫秒（重试退避用） */
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** 第 attempt 次重试前的等待时间（attempt 从 0 开始） */
+function retryDelayMs(attempt: number): number {
+  return UPSTREAM_RETRY_DELAYS[Math.min(attempt, UPSTREAM_RETRY_DELAYS.length - 1)] ?? 500
+}
+
+/**
+ * GET 上游并返回完整响应；非 2xx 不抛错，由调用方判断（与列表页 axios 行为一致）
+ *
+ * 网络层抖动（实测该 CDN 偶发 ECONNRESET / TLS 握手被重置）会重试 retries 次，
+ * 只对网络错误 / 超时 / 5xx / 429 重试；重试耗尽后把最后一次错误原样抛出。
+ */
+export async function fetchUpstream(
+  input: string,
+  t?: string,
+  retries: number = UPSTREAM_RETRIES,
+): Promise<UpstreamResponse> {
   const url = resolveUpstreamUrl(input, t)
-  const startedAt = Date.now()
+  let lastError: unknown = null
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: DATA_REQUEST_HEADERS,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT),
-    redirect: 'follow',
-  })
-  const body = await response.text()
-  const headers: Record<string, string> = {}
-  response.headers.forEach((value, name) => {
-    headers[name] = value
-  })
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const startedAt = Date.now()
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: DATA_REQUEST_HEADERS,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT),
+        redirect: 'follow',
+      })
+      const body = await response.text()
+      const headers: Record<string, string> = {}
+      response.headers.forEach((value, name) => {
+        headers[name] = value
+      })
 
-  return {
-    method: 'GET',
-    url,
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok,
-    elapsedMs: Date.now() - startedAt,
-    bytes: Buffer.byteLength(body),
-    headers,
-    body,
+      const result: UpstreamResponse = {
+        method: 'GET',
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        elapsedMs: Date.now() - startedAt,
+        bytes: Buffer.byteLength(body),
+        headers,
+        body,
+      }
+
+      // 5xx / 429 之外的状态码（含正常 200）直接返回，由调用方判断
+      if (result.ok || !isRetryableStatus(result.status) || attempt >= retries) return result
+      const wait = retryDelayMs(attempt)
+      console.warn(warn(`HTTP ${result.status} ${url}，${wait}ms 后第 ${attempt + 1}/${retries} 次重试`))
+      await delay(wait)
+    } catch (error) {
+      lastError = error
+      if (attempt >= retries || !isRetryableError(error)) throw error
+      const wait = retryDelayMs(attempt)
+      console.warn(
+        warn(`请求失败（${describeError(error)}），${wait}ms 后第 ${attempt + 1}/${retries} 次重试：${url}`),
+      )
+      await delay(wait)
+    }
   }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
 }
 
 /** GET 上游并解析 JSON；非 2xx 直接抛错 */

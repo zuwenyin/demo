@@ -17,6 +17,8 @@
  *      范围来自 config.js：
  *        QUIZ_SCOPE = "public"（默认，只答公共题）/ "custom"（只答 QUIZ_CATEGORIES）/ "all"（当天该厂区全部）
  *        QUIZ_ONLY_TODAY 控制是否只处理 startTime 为当天的试卷（默认 true）
+ *        当天没命中、且快照最新日期早于今天（当天卷子还没发布）时，自动补答该日期里未过期的试卷
+ *        （--no-catch-up 关闭补答；--all-days 直接忽略日期过滤）
  *      （第三步不再发请求，数据在上一步已经拿到）
  *   4) 每份试卷 × 每个工号各构建一份提交请求体：
  *      明文 { ExaminationId, Code, Answers } -> encodeURIComponent -> SM2 加密，
@@ -40,6 +42,8 @@
  *   pnpm start -- --limit 5                          打印前 5 条
  *   pnpm start -- --factory TJ4北厂                  临时换厂区（覆盖 config.js 的 QUIZ_FACTORY）
  *   pnpm start -- --detail-category 制剂生产          临时把范围缩到该类别（覆盖 QUIZ_SCOPE）
+ *   pnpm start -- --all-days                         忽略「仅当天」，处理数据里所有命中类别的试卷
+ *   pnpm start -- --no-catch-up                      当天没命中时不补答最新快照里的试卷
  *   pnpm start -- --full                             额外打印数据文件的原始响应体（默认省略）
  *   pnpm start -- --raw                              响应体原样打印（不做 JSON 美化）
  *   pnpm start -- --out data.json                    把数据文件响应体保存到文件
@@ -52,6 +56,7 @@
  * 可用环境变量：
  *   UPSTREAM_ORIGIN   上游站点，默认 https://ehs30sfun-cdn.asymchem.com.cn
  *   REQUEST_TIMEOUT   单次请求超时（毫秒），默认 30000
+ *   UPSTREAM_RETRIES  GET 失败的进程内重试次数（0 = 不重试），默认 3；只重试网络错误/超时/5xx/429
  *   MAX_PRINT_CHARS   终端里原始响应体最大打印字符数，默认 4000
  *   SUBMIT_TIMEOUT    提交接口超时（毫秒），默认 15000
  *   SUBMIT_RETRIES    提交失败的进程内重试次数（0 = 不重试），默认 2；只对网络错误 / 5xx / 429 重试
@@ -76,7 +81,11 @@ import type { ExamItem, QuestionItem } from './exam-types.js'
 import {
   currentVersion,
   DATA_DIR,
+  delay,
+  describeError,
   fetchUpstream,
+  isRetryableError,
+  isRetryableStatus,
   POINTER_PATH,
   resolveUpstreamUrl,
   type UpstreamResponse,
@@ -170,6 +179,10 @@ interface CliOptions {
   bodyMode: 'raw' | 'json'
   /** 提交接口超时（毫秒） */
   submitTimeout: number
+  /** 忽略「仅当天」，处理数据里所有命中类别的试卷（--all-days） */
+  allDays: boolean
+  /** 当天没命中、且最新快照不是今天时，补答该快照里未过期的试卷（--no-catch-up 关闭） */
+  catchUp: boolean
 }
 
 /* ---------------------------------- 参数 ---------------------------------- */
@@ -182,6 +195,12 @@ const BOOLEAN_FLAGS: Record<string, keyof CliOptions> = {
   '--no-t': 'noT',
   '--skip-payload': 'skipPayload',
   '--dry-run': 'dryRun',
+  '--all-days': 'allDays',
+}
+
+/** 反向开关：出现即为 false */
+const NEGATIVE_FLAGS: Record<string, keyof CliOptions> = {
+  '--no-catch-up': 'catchUp',
 }
 
 /** 取值参数：flag -> 赋值（缺值时保持原值，与旧实现一致） */
@@ -235,14 +254,19 @@ function parseArgs(args: string[]): CliOptions {
     dryRun: false,
     bodyMode: 'raw',
     submitTimeout: DEFAULT_SUBMIT_TIMEOUT,
+    allDays: false,
+    catchUp: true,
   }
   const handlers = valueHandlers(options)
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i] as string
     if (arg in BOOLEAN_FLAGS) {
-      const key = BOOLEAN_FLAGS[arg] as 'raw' | 'json' | 'full' | 'noT' | 'skipPayload' | 'dryRun'
+      const key = BOOLEAN_FLAGS[arg] as 'raw' | 'json' | 'full' | 'noT' | 'skipPayload' | 'dryRun' | 'allDays'
       options[key] = true
+    } else if (arg in NEGATIVE_FLAGS) {
+      const key = NEGATIVE_FLAGS[arg] as 'catchUp'
+      options[key] = false
     } else if (arg in handlers) {
       const value = args[i + 1]
       if (value !== undefined) {
@@ -313,6 +337,49 @@ function selectScopeExams(exams: ExamItem[], scope: ScopeConfig): ExamItem[] {
     if (scope.onlyToday && formatDate(exam.startTime) !== today) return false
     return true
   })
+}
+
+/** 试卷是否仍在有效期内（endTime 缺失/非法时按过期处理，避免补答历史试卷） */
+function isNotExpired(exam: ExamItem): boolean {
+  if (!exam.endTime) return false
+  const end = new Date(exam.endTime)
+  return !Number.isNaN(end.getTime()) && end.getTime() > Date.now()
+}
+
+/** 数据里最新一批试卷的日期（YYYY-MM-DD），用于判断当天试卷是否已发布 */
+function latestExamDate(exams: ExamItem[]): string {
+  let latest = ''
+  for (const exam of exams) {
+    const date = formatDate(exam.startTime)
+    if (date !== '-' && date > latest) latest = date
+  }
+  return latest
+}
+
+interface CatchUpSelection {
+  /** 补答的试卷 */
+  exams: ExamItem[]
+  /** 补答的是哪一天的卷子 */
+  date: string
+}
+
+/**
+ * 当天没命中时的补答：
+ *   上游每天 15:20 后才发布当天数据。若本次拿到的快照最新日期早于今天（当天卷子还没生成），
+ *   只按「仅当天」过滤会一份都不剩并静默跳过。这里回退为补答最新快照那一天里
+ *   「类别命中 + 未过期」的试卷；快照已经是今天时不补答（避免把"当天确实没这类卷"也当漏答）。
+ */
+function selectCatchUpExams(exams: ExamItem[], scope: ScopeConfig): CatchUpSelection | null {
+  const latest = latestExamDate(exams)
+  if (!latest || latest >= todayString()) return null
+
+  const picked = exams.filter((exam) => {
+    const question = exam.questions?.[0]
+    if (!question) return false
+    if (scope.categories.length > 0 && !scope.categories.includes(String(question.category ?? ''))) return false
+    return formatDate(exam.startTime) === latest && isNotExpired(exam)
+  })
+  return picked.length > 0 ? { exams: picked, date: latest } : null
 }
 
 /** 按列表页展示口径整理单条数据（显示名、厂区、类别、日期都来自 questions[0]） */
@@ -426,11 +493,12 @@ function printQuestion(question: QuestionItem, index: number): void {
 }
 
 /** 第三步：按题目详情页（题目详情.html）的规则渲染「答题范围」命中的试卷详情 */
-function printExamDetail(exams: ExamItem[], scope: ScopeConfig): void {
+function printExamDetail(exams: ExamItem[], scope: ScopeConfig, note = ''): void {
   console.log(heading(`3/5 题目详情（${scope.factory} · 范围 ${scope.scope}，命中 ${exams.length} 份）`))
   console.log(`${label('范围来源')} : ${scope.source}`)
   console.log(`${label('类别过滤')} : ${scope.categories.length > 0 ? scope.categories.join('、') : '不按类别过滤（all）'}`)
   console.log(`${label('仅当天')}   : ${scope.onlyToday ? '是' : '否'}`)
+  if (note) console.log(`${label('补答说明')} : ${warn(note)}`)
 
   if (exams.length === 0) {
     console.log(warn('答题范围内没有命中任何试卷，跳过题目详情与提交'))
@@ -562,38 +630,6 @@ interface SubmitAttempt {
   retryable: boolean
   /** 失败原因（成功时为空串） */
   detail: string
-}
-
-/** 取完整错误链：undici 把真实原因藏在 error.cause / AggregateError.errors 里 */
-function describeError(error: unknown, depth = 0): string {
-  if (!error || depth > 3) return ''
-  if (!(error instanceof Error)) return String(error)
-  const parts = [error.message]
-  const cause = (error as { cause?: unknown }).cause
-  if (cause) parts.push(describeError(cause, depth + 1))
-  const errors = (error as { errors?: unknown[] }).errors
-  if (Array.isArray(errors) && errors[0]) parts.push(describeError(errors[0], depth + 1))
-  return parts.filter(Boolean).join(' ← ')
-}
-
-/** 网络层 / 超时类错误才重试；业务失败重试没有意义 */
-function isRetryableError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false
-  if (error.name === 'TimeoutError') return true // AbortSignal.timeout
-  if (error.message === 'fetch failed') return true // undici 网络层（真实原因在 cause 里）
-  const code = (error as { cause?: { code?: string } }).cause?.code ?? ''
-  return /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH|ENETUNREACH|UND_ERR_)/.test(
-    code,
-  )
-}
-
-/** HTTP 层可重试状态：限流与 5xx */
-function isRetryableStatus(status: number): boolean {
-  return status === 429 || status >= 500
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 /**
@@ -819,13 +855,26 @@ async function main(): Promise<void> {
   const data = parseExamData(dataResult.body)
 
   const env = await loadEnvConfigSafe(options)
-  const scope = resolveScopeConfig(env, { factory: options.factory, detailCategory: options.detailCategory })
+  const resolvedScope = resolveScopeConfig(env, { factory: options.factory, detailCategory: options.detailCategory })
+  // --all-days：临时忽略「仅当天」，用于补答漏掉的试卷
+  const scope: ScopeConfig = options.allDays
+    ? { ...resolvedScope, onlyToday: false, source: `${resolvedScope.source} + --all-days（不看日期）` }
+    : resolvedScope
   const matchedExams = filterByFactory(data, scope.factory)
   const matchedItems = matchedExams.map(toListItem)
   // 答题范围命中的试卷：--submit-exam-id 显式指定时只处理该试卷，否则按 QUIZ_SCOPE 筛选
-  const scopeExams = options.submitExamId
+  let scopeExams = options.submitExamId
     ? data.filter((item) => String(item.id) === options.submitExamId)
     : selectScopeExams(matchedExams, scope)
+  // 当天没命中、且数据快照还停在旧日期（当天卷子尚未发布）→ 补答最新快照那一天的试卷
+  let catchUpNote = ''
+  if (!options.submitExamId && scopeExams.length === 0 && scope.onlyToday && options.catchUp) {
+    const catchUp = selectCatchUpExams(matchedExams, scope)
+    if (catchUp) {
+      scopeExams = catchUp.exams
+      catchUpNote = `当天（${todayString()}）没命中，数据快照最新是 ${catchUp.date} → 改为补答该日未过期试卷（--no-catch-up 关闭）`
+    }
+  }
 
   if (options.out) {
     await writeFile(options.out, dataResult.body, 'utf8')
@@ -845,7 +894,7 @@ async function main(): Promise<void> {
       console.log(`\n${warn(`响应体：已省略 ${dataResult.bytes} 字节（用 --full 打印完整内容，或用 --out <文件> 保存）`)}`)
     }
     printExamList(matchedItems, options, scope.factory, data.length, matchedExams.length)
-    printExamDetail(scopeExams, scope)
+    printExamDetail(scopeExams, scope, catchUpNote)
 
     if (options.skipPayload) {
       console.log(`\n${warn('--skip-payload 已跳过第四、五步（提交请求体构建与提交）')}`)

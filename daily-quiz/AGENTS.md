@@ -27,7 +27,7 @@ Remove-Item Env:SUBMIT_RETRIES; Remove-Item .\config.selftest.js
 pnpm start
 ```
 
-常用参数：`--dry-run`、`--code <工号>`、`--submit-exam-id <id>`、`--factory <厂区>`、`--limit <n>`、`--skip-payload`、`--json`、`--out <文件>`、`--t <值>`/`--no-t`、`--config <路径>`（默认根目录 `config.js`）。
+常用参数：`--dry-run`、`--code <工号>`、`--submit-exam-id <id>`、`--factory <厂区>`、`--limit <n>`、`--skip-payload`、`--json`、`--out <文件>`、`--t <值>`/`--no-t`、`--all-days`/`--no-catch-up`、`--config <路径>`（默认根目录 `config.js`）。
 
 ## 接口（实测结论）
 
@@ -62,12 +62,12 @@ pnpm start
 ## 关键决策（改动前必读）
 
 1. 列表顺序 = 接口数组顺序，列表页只按 `questions[0].factory` 过滤、**不排序**；所以"选中某厂区后的第一条"≠ 数组第一条。
-2. 答题范围配置化：`QUIZ_SCOPE = public | custom | all` + `QUIZ_ONLY_TODAY`；优先级 `--submit-exam-id` > `--detail-category` > `config.js`。
+2. 答题范围配置化：`QUIZ_SCOPE = public | custom | all` + `QUIZ_ONLY_TODAY`；优先级 `--submit-exam-id` > `--detail-category` > `config.js`。**当天没命中且快照最新日期早于今天**（上游约 15:20 才发布当天数据）时，自动回退为补答该快照日期里「类别命中 + `endTime` 未过期」的试卷（`selectCatchUpExams`，`--no-catch-up` 关闭；`--all-days` 直接关掉日期过滤）。快照已是今天则不补答。
 3. 答案直接来自数据里的 `correctAnswer`（原系统把答案下发给前端）。
 4. **选项随机，且"显示字母 ≠ 内部值"**：渲染按显示位置编字母，`el-radio.label`（提交值）按原始索引编字母；判定/提交都在"原始字母"坐标系。⇒ 自动作答必须用 `correctAnswer` 原样提交；脚本第三步打印的 A/B/C/D 是**接口原始顺序**，不代表页面字母。用 `pnpm run simulate` 可直观看到。
 5. 提交粒度 = 试卷 × 工号（每个组合一份密文），串行提交。
 6. body 形态固定为"裸 hex 字符串"（页面 axios 行为），已实测被服务端接受；`--body-mode json` 仅备用对照。
-7. 无人值守三层：任务计划程序（定时 + 任务级重试）+ `run-daily.ps1`（按天日志、退出码兜底）+ 进程内重试（仅提交，`SUBMIT_RETRIES` 默认 2，间隔 0.5/1/2s；只对网络错误 / 超时 / 5xx / 429 重试，业务失败不重试）。**提交失败必须传导为退出码 1**，否则任务级的"失败重启"不会触发。
+7. 无人值守三层：任务计划程序（定时 + 任务级重试）+ `run-daily.ps1`（按天日志、退出码兜底）+ 进程内重试（**GET 用 `UPSTREAM_RETRIES` 默认 3**、提交用 `SUBMIT_RETRIES` 默认 2，间隔均 0.5/1/2s；只对网络错误 / 超时 / 5xx / 429 重试，业务失败不重试）。**提交失败必须传导为退出码 1**，否则任务级的"失败重启"不会触发。`describeError`/`isRetryableError`/`isRetryableStatus`/`delay` 统一放在 `upstream.ts` 导出，别再在别处重复实现。
 
 ## 结构
 
@@ -110,7 +110,7 @@ Get-Content D:\testCode\demo\daily-quiz\logs\daily-quiz-$(Get-Date -Format 'yyyy
 | 任务结果 1 且没生成日志 | 重定向目标目录不存在 → `run-daily.ps1` 已自动创建 `logs` |
 | 日志中文乱码 | PS 5.1 按 GBK 读无 BOM 的 UTF-8 脚本 → 脚本存 UTF-8 with BOM，读取加 `-Encoding UTF8` |
 | 日志只有头部没有 node 输出 | `Out-File -Append` 静默失败 → 已改 `Add-Content -Encoding UTF8` |
-| 偶发 `fetch failed` | CDN/网络抖动 → 进程内重试 2 次（0.5/1/2s）+ 任务级重试 |
+| 偶发 `fetch failed`（含 `Client network socket disconnected before secure TLS connection was established`） | 该 CDN 新建连接约 15% 在 TLS 握手阶段被重置（实测走 TUN / 走 127.0.0.1:7897 都一样，与请求头无关）→ GET 已内置重试 3 次（0.5/1/2s，`UPSTREAM_RETRIES`）+ 提交重试 2 次 + 任务级重试 |
 | 日志写"提交失败"但任务结果 0x0 | 提交失败没传导到退出码 → 已修：`printSubmitStep` 返回失败明细、`main` 置 1；`run-daily.ps1` 另有"node 无退出码 / 输出含提交失败 → 按 1"兜底 |
 | 密文比页面短 1 字节 | 库输出不带 C1 的 `04` → 已补回 |
 | 重复运行仍会请求一次提交 | 未做"已答跳过" → 后端返回 `code=400`「您已经参加过该考试」，脚本按成功处理，不影响成绩 |
@@ -119,7 +119,7 @@ Get-Content D:\testCode\demo\daily-quiz\logs\daily-quiz-$(Get-Date -Format 'yyyy
 ## 待办
 
 1. 接入 `GetCompletedExamsByHtml` 做"已答跳过"（同时作为安全重试的前置校验）
-2. GET（指针文件 / 数据文件）进程内重试仍缺（当前只在 `main` 里失败一次即退出）；POST 已有重试，但"重试前复查已答"未做（现靠服务端「您已经参加过该考试」响应兜底）
+2. ~~GET（指针文件 / 数据文件）进程内重试仍缺~~ 已补（`upstream.ts` 的 `fetchUpstream`，`UPSTREAM_RETRIES` 默认 3）；POST 的"重试前复查已答"仍未做（现靠服务端「您已经参加过该考试」响应兜底）
 3. 失败钉钉告警（由 `run-daily.ps1` 在非 0 退出时发送）
 4. `simulate-answer.ts` 样式统一到 `terminal-style.ts`
 
